@@ -1,0 +1,41 @@
+{
+  "title": "我的博客",
+  "subtitle": "记录生活与技术",
+  "description": "一个纯静态、却能在线进入后台编辑的个人博客。",
+  "keywords": "博客,blog,静态博客,Markdown",
+  "author": "你的昵称",
+  "avatar": "avatar.svg",
+  "favicon": "icons/favicon.svg",
+  "since": 2025,
+  "heroEnable": true,
+  "heroImage": "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1920&q=80",
+  "heroCreditText": "",
+  "heroCreditLink": "",
+  "themeHue": 52,
+  "themeFixed": false,
+  "postsPerPage": 8,
+  "showCover": true,
+  "social": [
+    { "icon": "fas fa-rss", "label": "RSS", "url": "rss.xml" }
+  ],
+  "menus": [],
+  "license": "CC BY-NC-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans",
+  "giscus": {
+    "enable": false,
+    "repo": "",
+    "repoId": "",
+    "category": "Announcements",
+    "categoryId": "",
+    "mapping": "pathname",
+    "strict": "0",
+    "reactionsEnabled": "1",
+    "inputPosition": "top",
+    "lang": "zh-CN"
+  },
+  "footerHtml": "<span style=\"color:#e74c3c\">玫瑰会有花期🌹</span><span style=\"color:#ff6b81\"> 爱你不分朝夕❤</span>",
+  "headHtml": "",
+  "busuanzi": true,
+  "gitHubCDN": "gcore.jsdelivr.net",
+  "actionUrl": ""
+}

@@ -1,0 +1,38 @@
+name: 🐛 Bug 反馈
+description: 报告一个问题
+labels: [bug]
+body:
+  - type: textarea
+    id: desc
+    attributes:
+      label: 问题描述
+      description: 发生了什么？期望的行为是什么？
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开 ...
+        2. 点击 ...
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 部署平台
+      options: [GitHub Pages, Netlify, Vercel, Cloudflare Pages, 本地, 其他]
+  - type: dropdown
+    id: git
+    attributes:
+      label: 仓库平台
+      options: [GitHub, Gitee, GitLab]
+  - type: input
+    id: url
+    attributes:
+      label: 站点地址（可选）
+  - type: textarea
+    id: logs
+    attributes:
+      label: 报错信息 / 截图
+      description: 浏览器控制台（F12）或构建日志中的报错
+      render: shell

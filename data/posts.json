@@ -1,0 +1,28 @@
+[
+  {
+    "slug": "hello-world",
+    "title": "你好，NavBlog",
+    "date": "2026-11-08 20:00",
+    "tags": [
+      "NavBlog",
+      "开始"
+    ],
+    "category": "随笔",
+    "summary": "博客搭好啦！这是一篇示例文章，介绍 NavBlog 是怎么工作的，以及接下来你可以做什么。",
+    "pinned": true,
+    "words": 342
+  },
+  {
+    "slug": "markdown-guide",
+    "title": "Markdown 写作示例",
+    "date": "2026-11-07 10:30",
+    "tags": [
+      "Markdown",
+      "写作"
+    ],
+    "category": "教程",
+    "summary": "这篇文章展示了博客支持的 Markdown 语法，写文章时可以参考。 粗体、斜体、删除线、行内代码，以及 链接。 - 无序列表项 - 另一项 - 嵌套项 1. 有序列表 2. 第二项 - [x] 已完成任务 - [ ] 未完成任务 这是一段…",
+    "cover": "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=1200&q=80",
+    "words": 102
+  }
+]

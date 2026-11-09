@@ -1,0 +1,14 @@
+{
+  "name": "NavBlog",
+  "short_name": "NavBlog",
+  "description": "纯静态、可在线后台编辑的个人博客",
+  "theme_color": "#b8a320",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "./",
+  "start_url": "./",
+  "icons": [
+    { "src": "icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512x512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
