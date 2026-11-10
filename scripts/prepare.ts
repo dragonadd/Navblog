@@ -12,6 +12,7 @@ import {
   ensureDir,
   createManifest,
   readMoments,
+  readAuth,
 } from './lib'
 import { renderCustomResources } from '../src/shared/custom-resources'
 import { resolveDark } from '../src/shared/theme-settings'
@@ -19,11 +20,28 @@ import { resolveDark } from '../src/shared/theme-settings'
 const config = readConfig()
 const settings = readSettings()
 const posts = readPostFiles().map((p) => p.meta)
+const published = posts.filter((p) => !p.draft)
 const moments = readMoments()
+const auth = readAuth()
 if (settings.pwaEnable) createManifest(settings, config.baseHref)
 
 fs.writeFileSync(PATHS.postsIndex, JSON.stringify(posts, null, 2) + '\n')
 ensureDir(PATHS.generated)
+const publicPosts = `${PATHS.generated}/published-posts`
+ensureDir(publicPosts)
+const publishedFiles = new Set(published.map((p) => p.slug + '.md'))
+for (const file of fs.readdirSync(publicPosts)) {
+  if (file.endsWith('.md') && !publishedFiles.has(file))
+    fs.rmSync(`${publicPosts}/${file}`)
+}
+for (const p of published)
+  fs.copyFileSync(
+    `${PATHS.postsDir}/${p.slug}.md`,
+    `${publicPosts}/${p.slug}.md`,
+  )
+ensureDir(`${PATHS.generated}/auth`)
+if (auth) fs.writeFileSync(`${PATHS.generated}/auth/auth.json`, auth)
+else fs.rmSync(`${PATHS.generated}/auth/auth.json`, { force: true })
 fs.writeFileSync(
   `${PATHS.generated}/moments.json`,
   JSON.stringify(moments, null, 2),
@@ -38,7 +56,7 @@ fs.writeFileSync(
 )
 fs.writeFileSync(
   `${PATHS.generated}/posts.json`,
-  JSON.stringify(posts, null, 2),
+  JSON.stringify(published, null, 2),
 )
 
 let html = fs.readFileSync(PATHS.indexTemplate, 'utf8')
@@ -48,20 +66,18 @@ const title = settings.subtitle
 html = html
   .replace(
     '<!-- blog:base -->',
-    `<base href="${escapeHtml(config.baseHref)}" />`,
+    () => `<base href="${escapeHtml(config.baseHref)}" />`,
   )
-  .replace('<!-- blog:title -->', `<title>${escapeHtml(title)}</title>`)
-  .replace(
-    '<!-- blog:pwa -->',
+  .replace('<!-- blog:title -->', () => `<title>${escapeHtml(title)}</title>`)
+  .replace('<!-- blog:pwa -->', () =>
     settings.pwaEnable
       ? `<link rel="manifest" href="manifest.webmanifest" /><meta name="theme-color" content="${escapeHtml(settings.pwaThemeColor || '#b8a320')}" />` +
-          (settings.pwaIcon
-            ? `<link rel="apple-touch-icon" href="${escapeHtml(settings.pwaIcon)}" />`
-            : '')
+        (settings.pwaIcon
+          ? `<link rel="apple-touch-icon" href="${escapeHtml(settings.pwaIcon)}" />`
+          : '')
       : '',
   )
-  .replace(
-    '<!-- blog:meta -->',
+  .replace('<!-- blog:meta -->', () =>
     [
       `<meta name="description" content="${escapeHtml(settings.description)}" />`,
       `<meta name="keywords" content="${escapeHtml(settings.keywords)}" />`,
@@ -82,9 +98,10 @@ html = html
   )
   .replace(
     '<!-- blog:theme -->',
-    `<script>window.__BLOG_HUE__=${Number.isFinite(Number(settings.themeHue)) ? Math.min(360, Math.max(0, Number(settings.themeHue))) : 52};window.__BLOG_THEME_FIXED__=${!!settings.themeFixed};window.__BLOG_APPEARANCE__=${JSON.stringify({ appearance: settings.appearance, darkStart: settings.darkStart, darkEnd: settings.darkEnd }).replace(/</g, '\\u003c')};window.__BLOG_RESOLVE_DARK__=${resolveDark.toString()};</script>`,
+    () =>
+      `<script>window.__BLOG_HUE__=${Number.isFinite(Number(settings.themeHue)) ? Math.min(360, Math.max(0, Number(settings.themeHue))) : 52};window.__BLOG_THEME_FIXED__=${!!settings.themeFixed};window.__BLOG_APPEARANCE__=${JSON.stringify({ appearance: settings.appearance, darkStart: settings.darkStart, darkEnd: settings.darkEnd }).replace(/</g, '\\u003c')};window.__BLOG_RESOLVE_DARK__=${resolveDark.toString()};</script>`,
   )
-  .replace('<!-- blog:head -->', settings.headHtml || '')
+  .replace('<!-- blog:head -->', () => settings.headHtml || '')
 fs.writeFileSync(
   PATHS.indexHtml,
   renderCustomResources(html, settings, config.baseHref),

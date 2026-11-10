@@ -14,11 +14,12 @@ import {
 import { LocalDemoService } from '../services/local-demo.service'
 import { normalizeAnnouncementLink } from '../../shared/announcement'
 import { normalizeThemeSettings } from '../../shared/theme-settings'
+import { LoginPasswordComponent } from '../components/login-password.component'
 import { normalizeCustomResources } from '../../shared/custom-resources'
 
 @Component({
   selector: 'app-settings-page',
-  imports: [FormsModule],
+  imports: [FormsModule, LoginPasswordComponent],
   template: `
     <div class="flex flex-col gap-4">
       <div class="fuwari-card flex items-center p-5">
@@ -42,6 +43,7 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
           <i class="fas fa-spinner fa-spin mr-2"></i>加载中…
         </div>
       } @else {
+        <app-login-password />
         <div class="fuwari-card p-5">
           <div class="fuwari-section-title mb-4">基本信息</div>
           <div class="grid gap-4 md:grid-cols-2">
@@ -454,7 +456,7 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
             </div>
           </div>
           <p class="fuwari-muted mt-3 text-xs leading-relaxed">
-            在主页文章列表上方显示，文本保留换行，不解析
+            在博客侧栏显示，文本保留换行，不解析
             HTML。访客关闭后当前公告不再显示；修改标题、文本或链接后会重新显示。关闭记录只影响当前浏览器，禁止关闭时公告始终显示。{{
               demo.active()
                 ? '本地演示保存后可直接预览。'

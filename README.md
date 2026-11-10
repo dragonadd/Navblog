@@ -6,13 +6,25 @@
 
 Fuwari 风格主题 · Markdown 文章 · Git 仓库即数据库 · 零服务器 · 零数据库
 
-Angular 21 + TypeScript + Tailwind CSS 4。最新功能说明更新于 **2026-11-10**。
+Angular 21 + TypeScript + Tailwind CSS 4。功能与验收修复说明更新于 **2026-11-11**。
+
+本轮发布过滤、保存冲突、登录竞态与手机交互的修复及验证见 [验收修复记录](./docs/acceptance-fixes.md)。
 
 [功能](#-功能) · [快速开始](#-快速开始) · [部署教程](#-部署教程) · [后台使用](#-后台使用) · [配置](#-配置说明) · [常见问题](#-常见问题)
 
 </div>
 
 ---
+
+## 🖼️ 页面展示
+
+**首页**
+
+![NavBlog 首页：横幅、侧栏与文章列表](./docs/images/homepage.jpg)
+
+**后台文章管理（本地演示模式）**
+
+![NavBlog 后台：文章管理与功能导航](./docs/images/admin.jpg)
 
 ## ✨ 这是什么
 
@@ -43,13 +55,15 @@ Angular 21 + TypeScript + Tailwind CSS 4。最新功能说明更新于 **2026-11
 
 **后台 `/admin`**
 
-- 使用 GitHub / Gitee / GitLab 的 Access Token 登录（Token 只保存在你自己浏览器的 localStorage）
+- 双模式登录：未设密码时 Token 直登；设置密码后默认密码登录，仍保留 Token 兜底。Token 只存当前标签页 sessionStorage
 - 新建 / 编辑 / 删除文章：Markdown 编辑器（工具栏、分屏实时预览、`Ctrl+B/I/K/S` 快捷键）
 - 图片上传：粘贴、拖拽或按钮上传，自动存到图片分支并返回 CDN 地址
 - 站点设置：标题、头像、横幅、社交链接、菜单、分页、版权协议、Giscus、页脚 HTML……
 - 编辑「关于」页
 - 加密文章解锁编辑、修改密码和重新加密
+- 登录密码独立设置／修改／移除，浏览器加密 Token 后自动提交 `data/auth.json`
 - 碎碎念发布／编辑／删除，Git 文件版本核验避免静默覆盖，删除需页内确认
+- 文章、站点设置和关于页保存也校验编辑版本；发现其他窗口的修改时保留输入并提示重新读取
 - **本地演示无需 Token**：在浏览器中试写文章和修改设置，可导出已保存的演示文件
 - 保存即提交（GitHub 上一次保存只产生一次提交）
 
@@ -171,13 +185,19 @@ git add . && git commit -m "init my blog" && git push
 
 ### 2. 登录与写作
 
-1. 访问 `https://你的站点/admin`，粘贴 Token 登录。
+1. 访问 `https://你的站点/admin`。未设登录密码时粘贴 Token；已有密码时默认密码登录，也可切换 Token 登录。
 2. **文章** → **写文章**：填写标题、分类、标签、封面，在编辑器里写 Markdown，`Ctrl+S` 保存。
 3. 保存后等待 1～2 分钟（托管平台重新构建），刷新前台即可看到新文章。
 
 其他入口：`/admin/moments` 管理碎碎念，`/admin/about` 编辑关于页，`/admin/settings` 配置主题、公告、每日文字、RSS、PWA 等。
 
-> 🔒 Token 保存在当前浏览器的 localStorage 中，作为请求凭据直接发送给配置的 Git 平台 API。请勿在公共电脑上登录，用完可点击“退出”；自定义脚本只使用可信来源。
+> 🔒 Token 只存当前标签页的 sessionStorage，作为请求凭据发送给配置的 Git API。升级后旧 localStorage Token 会清除，需要重新登录。刷新可保留登录，退出会清除；浏览器会话恢复可能保留数据。自定义脚本仅使用可信来源。
+
+### 3. 登录密码管理
+
+在 **站点设置 → 登录密码管理** 输入并确认密码。密码至少 8 位且包含字母和数字；**为了安全性，建议使用 12 位以上的独有密码**。浏览器使用 PBKDF2-SHA-256 和 AES-GCM 加密当前 Token，再单独提交密文文件 `data/auth.json`。部署成功后显示密码登录 Tab；忘记密码或 Token 过期时可用新 Token 登录并重设。
+
+“移除密码”会删除当前文件并恢复 Token 登录，但 Git 历史和旧部署中的密文仍可能存在，需要撤销旧访问时请在 Git 平台轮换 Token。公开密文可被离线猜解，弱密码不适合保护写权限凭证。本地演示不管理真实登录凭证。详见 [后台认证说明](./docs/authentication.md)。
 
 详细说明见 [docs/admin.md](./docs/admin.md)。
 
@@ -223,6 +243,8 @@ hideSidebar: true           # 可选，全宽阅读
 正文……
 ```
 
+文章只支持 `data/posts/` 顶层 Markdown 文件。构建仅发布经校验的非草稿文章，草稿正文和自动摘要不进入站点产物；仓库索引仍保留草稿供登录后的后台读取。公开 Git 仓库及历史提交本身不提供草稿保密。
+
 ### 加密文章
 
 在后台编辑器勾选“文章密码加密”，填写并确认至少 12 个字符的密码。正文用 AES-256-GCM 加密，密码通过 PBKDF2-SHA-256 派生密钥；保存到仓库的是公开元信息和密文，密码不会写入文件。阅读和再次编辑均需解锁。
@@ -247,6 +269,7 @@ data/
   settings.json         站点设置（后台「站点设置」编辑的就是它）
   about.md              关于页
   moments.json          碎碎念（ID、ISO 时间、纯文本、可选更新时间）
+  auth.json             可选的后台密码密文凭证（设置密码后自动提交）
 public/                 静态资源（favicon、默认头像等），原样复制到站点根目录
 scripts/                构建脚本（prepare / postbuild / preview / new-post / init）
 src/app/                前台页面与组件；src/app/admin 为后台
@@ -293,6 +316,8 @@ GitHub 图片默认通过 jsDelivr CDN 访问，首次上传后可能需要几�
 </details>
 
 更多问题见 [docs/faq.md](./docs/faq.md)，或在 [Issues](../../issues) 中提问。
+
+保存时若提示版本冲突，请先复制保留当前输入，再重新打开对应编辑页读取最新内容。GitHub/GitLab 可将正文及索引作为一次条件提交；Gitee 使用逐文件 SHA 更新，若中途失败可能部分提交，需要查看仓库并重新读取后处理。
 
 ## 🙏 致谢
 

@@ -18,7 +18,8 @@
             "tsConfig": "tsconfig.app.json",
             "assets": [
               { "glob": "**/*", "input": "public" },
-              { "glob": "**/*.md", "input": "data/posts", "output": "content/posts" },
+              { "glob": "auth.json", "input": "src/generated/auth", "output": "data" },
+              { "glob": "*.md", "input": "src/generated/published-posts", "output": "content/posts" },
               { "glob": "about.md", "input": "data", "output": "content" }
             ],
             "styles": [

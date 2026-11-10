@@ -6,6 +6,9 @@ import { PATHS, readConfig } from './lib'
 
 const { baseHref } = readConfig()
 const port = Number(process.env.PORT || process.argv[2] || 4173)
+const root = fs.realpathSync(PATHS.dist)
+const inside = (file: string) =>
+  file === root || file.startsWith(root + path.sep)
 const types: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -26,26 +29,57 @@ const types: Record<string, string> = {
 
 http
   .createServer((req, res) => {
-    let url = decodeURIComponent((req.url || '/').split('?')[0])
+    let url: string
+    try {
+      url = decodeURIComponent((req.url || '/').split('?')[0])
+      if (url.includes('\0')) throw new Error()
+    } catch {
+      res.writeHead(400)
+      res.end('Invalid URL')
+      return
+    }
     if (!url.startsWith(baseHref)) {
       res.writeHead(302, { Location: baseHref })
       res.end()
       return
     }
     url = url.slice(baseHref.length)
-    let file = path.join(PATHS.dist, url)
-    if (!file.startsWith(PATHS.dist)) {
+    let file = path.resolve(root, url)
+    if (!inside(file)) {
       res.writeHead(403)
       res.end()
       return
     }
-    if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html')
     let status = 200
-    if (!fs.existsSync(file)) {
-      file = path.join(PATHS.dist, path.extname(url) ? '404.html' : 'index.html')
-      status = path.extname(url) ? 404 : 200
+    try {
+      if (fs.existsSync(file) && fs.statSync(file).isDirectory())
+        file = path.join(file, 'index.html')
+      if (!fs.existsSync(file)) {
+        file = path.join(root, path.extname(url) ? '404.html' : 'index.html')
+        status = path.extname(url) ? 404 : 200
+      }
+      if (!inside(fs.realpathSync(file))) {
+        res.writeHead(403)
+        res.end()
+        return
+      }
+      res.writeHead(status, {
+        'Content-Type': types[path.extname(file)] || 'application/octet-stream',
+      })
+      fs.createReadStream(file)
+        .on('error', () => {
+          if (res.headersSent) res.destroy()
+          else {
+            res.writeHead(500)
+            res.end('Unable to read resource')
+          }
+        })
+        .pipe(res)
+    } catch {
+      res.writeHead(500)
+      res.end('Unable to read resource')
     }
-    res.writeHead(status, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream' })
-    fs.createReadStream(file).pipe(res)
   })
-  .listen(port, () => console.log(`预览地址: http://localhost:${port}${baseHref}`))
+  .listen(port, () =>
+    console.log(`预览地址: http://localhost:${port}${baseHref}`),
+  )

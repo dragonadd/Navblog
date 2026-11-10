@@ -1,10 +1,12 @@
 import { Component, inject, signal } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import type { Moment } from '../../shared/types'
 import { formatMomentDate } from '../../shared/moments'
 import { BlogService } from '../services/blog.service'
 
 @Component({
   selector: 'app-moments-page',
+  imports: [RouterLink],
   template: `
     <header class="fuwari-card mb-4 p-5 md:p-6">
       <h1 class="text-3xl font-bold">碎碎念</h1>
@@ -36,7 +38,10 @@ import { BlogService } from '../services/blog.service'
                 <span class="text-sm font-semibold">{{
                   blog.settings().author
                 }}</span>
-                <a class="fuwari-muted text-xs" [href]="'#moment-' + item.id"
+                <a
+                  class="fuwari-muted text-xs"
+                  routerLink="/moments"
+                  [fragment]="'moment-' + item.id"
                   ><time [attr.datetime]="item.date">{{
                     date(item.date)
                   }}</time></a

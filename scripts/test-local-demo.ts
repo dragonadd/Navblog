@@ -3,7 +3,9 @@ import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test } from 'node:test'
 import { createEnvironmentInjector, type EnvironmentInjector } from '@angular/core'
 import { LocalDemoService, isLocalPreview } from '../src/app/services/local-demo.service'
-import { GitService } from '../src/app/services/git.service'
+import { GitService, parseRepo } from '../src/app/services/git.service'
+import { authIdentity } from '../src/shared/auth'
+import config from '../src/generated/config.json'
 import { BlogService } from '../src/app/services/blog.service'
 import { AdminStore } from '../src/app/admin/admin-store.service'
 
@@ -23,8 +25,8 @@ function storage(map: Map<string, string>) {
   }
 }
 beforeEach(() => {
-  local = new Map([['token', 'test-existing-token']])
-  session = new Map()
+  local = new Map()
+  session = new Map([[`navblog:token:v1:/:${authIdentity(parseRepo(config.gitRepoUrl, config.branch))}`, 'test-existing-token']])
   setGlobal('location', { hostname: 'localhost' })
   setGlobal('document', { baseURI: 'http://localhost:4173/' })
   setGlobal('localStorage', storage(local))
@@ -61,7 +63,7 @@ test('进入、刷新和退出演示，不修改已有 Token；退出后重进�
   assert.equal(new LocalDemoService().active(), false)
   reload.enter()
   assert.equal(reload.read('data/about.md'), '本地关于页')
-  assert.equal(local.get('token'), 'test-existing-token')
+  assert.equal(local.has('token'), false)
 })
 
 test('线上域名即便存在演示标记也无法进入或写入演示', () => {
@@ -89,6 +91,7 @@ test('演示设置、文章增改删、关于页均写入本地，并同步前�
   const { demo, blog, git, store } = services()
   const title = blog.settings().title
   demo.enter()
+  await store.loadSettings()
   await store.saveSettings({ ...blog.settings(), title: '演示标题', hitokotoApi: 'https://example.com/quote', actionUrl: 'https://example.com/deploy' })
   assert.equal((await store.loadSettings()).title, '演示标题')
   assert.equal(blog.settings().hitokotoApi, 'https://example.com/quote')
@@ -100,13 +103,15 @@ test('演示设置、文章增改删、关于页均写入本地，并同步前�
   assert.match(await blog.getPostSource('local-renamed'), /修改正文/)
   await store.deletePost('local-renamed')
   assert.equal(blog.findPost('local-renamed'), undefined)
+  demo.save([{ path: 'data/about.md', content: '原关于页' }])
+  await store.loadAbout()
   await store.saveAbout('本地关于')
   assert.equal(await blog.getAboutSource(), '本地关于')
   await git.fetchUser()
   git.triggerDeploy()
   await assert.rejects(git.login('unused-token'), /不会访问/)
   assert.equal(fetch.mock.callCount(), 0)
-  assert.equal(local.get('token'), 'test-existing-token')
+  assert.equal(local.has('token'), false)
   demo.exit()
   blog.refreshDemo()
   assert.equal(blog.settings().title, title)
@@ -138,7 +143,7 @@ test('碎碎念演示增改删和导出只写浏览器，退出恢复正式动�
   await store.deleteMoment(item.id)
   assert.deepEqual(blog.getMoments(), [])
   assert.equal(fetch.mock.callCount(), 0)
-  assert.equal(local.get('token'), 'test-existing-token')
+  assert.equal(local.has('token'), false)
   demo.exit()
   assert.deepEqual(blog.getMoments(), [])
 })
@@ -158,6 +163,7 @@ test('每日文字两个开关保存和刷新后保留 false，不被默认值�
   const fetch = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Unexpected network') })
   const { demo, blog, store } = services()
   demo.enter()
+  await store.loadSettings()
   await store.saveSettings({ ...blog.settings(), hitokotoEnable: false, hitokotoShowTitle: false })
   blog.refreshDemo()
   assert.equal(blog.settings().hitokotoEnable, false)

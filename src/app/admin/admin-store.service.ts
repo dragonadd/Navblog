@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core'
 import { BlogService } from '../services/blog.service'
-import { GitService } from '../services/git.service'
+import { GitService, type FileChange } from '../services/git.service'
 import type { BlogSettings, PostMeta, Moment } from '../../shared/types'
 import { normalizeMoment, parseMoments } from '../../shared/moments'
 import {
@@ -25,6 +25,36 @@ export class AdminStore {
   readonly posts = signal<PostMeta[]>(this.blog.allPosts())
   readonly loaded = signal(false)
   readonly moments = signal<Moment[]>([])
+  private snapshots = new Map<string, string | null>()
+
+  private async loadFile(path: string) {
+    const file = await this.git.getFile(path)
+    this.snapshots.set(path, file?.content ?? null)
+    return file
+  }
+
+  private expected(path: string): string | null {
+    if (!this.snapshots.has(path))
+      throw new Error('请先读取文件再保存，避免覆盖未确认的修改')
+    return this.snapshots.get(path)!
+  }
+
+  private async change(
+    path: string,
+    content: string | null,
+    expected: string | null,
+  ): Promise<FileChange> {
+    const file = await this.git.getFile(path)
+    if ((file?.content ?? null) !== expected)
+      throw new Error('文件已被其他窗口修改，请重新读取后保存；当前输入已保留')
+    return {
+      path,
+      content,
+      expectedSha: file?.sha ?? null,
+      expectedLastCommit: file?.lastCommit,
+      expectedContent: expected,
+    }
+  }
 
   async loadMoments(): Promise<Moment[]> {
     return (await this.readMoments()).items
@@ -89,13 +119,42 @@ export class AdminStore {
   }
 
   async loadIndex() {
-    const f = await this.git.getFile(PATH_INDEX)
-    if (f) {
-      try {
-        this.posts.set(sortPosts(JSON.parse(f.content)))
-      } catch {}
-    }
+    await this.readIndex()
     this.loaded.set(true)
+  }
+
+  private async readIndex() {
+    const f = await this.git.getFile(PATH_INDEX)
+    let items: PostMeta[] = []
+    try {
+      if (f) {
+        const data = JSON.parse(f.content)
+        if (
+          !Array.isArray(data) ||
+          data.some(
+            (p) =>
+              !p ||
+              typeof p !== 'object' ||
+              typeof p.slug !== 'string' ||
+              !p.slug ||
+              p.slug === '.' ||
+              p.slug === '..' ||
+              /[/\\\u0000-\u001f\u007f]/.test(p.slug) ||
+              typeof p.title !== 'string' ||
+              typeof p.date !== 'string' ||
+              !Array.isArray(p.tags) ||
+              p.tags.some((tag: unknown) => typeof tag !== 'string'),
+          ) ||
+          new Set(data.map((p) => p.slug)).size !== data.length
+        )
+          throw new Error()
+        items = sortPosts(data)
+      }
+    } catch {
+      throw new Error('文章索引 JSON 损坏，已停止操作，请修复或重新构建索引')
+    }
+    this.posts.set(items)
+    return { file: f, items }
   }
 
   async loadPost(slug: string): Promise<{
@@ -103,7 +162,7 @@ export class AdminStore {
     body: string
     data: Record<string, unknown>
   } | null> {
-    const f = await this.git.getFile(postPath(slug))
+    const f = await this.loadFile(postPath(slug))
     if (!f) return null
     const { data, body } = parseFrontMatter(f.content)
     return { meta: normalizeMeta(data, slug, body), body, data }
@@ -122,59 +181,99 @@ export class AdminStore {
     const md = stringifyPost(meta, storedBody)
     const { data } = parseFrontMatter(md)
     const full = normalizeMeta(data, meta.slug, storedBody)
-    await this.loadIndex()
-    const list = this.posts().filter(
+    const { file: indexFile, items: latest } = await this.readIndex()
+    const list = latest.filter(
       (p) => p.slug !== meta.slug && p.slug !== oldSlug,
     )
     list.push(full)
     const index = sortPosts(list)
-    const changes = [
-      { path: postPath(meta.slug), content: md },
-      { path: PATH_INDEX, content: JSON.stringify(index, null, 2) + '\n' },
+    const changes: FileChange[] = [
+      await this.change(
+        postPath(meta.slug),
+        md,
+        oldSlug === meta.slug ? this.expected(postPath(oldSlug)) : null,
+      ),
+      {
+        path: PATH_INDEX,
+        content: JSON.stringify(index, null, 2) + '\n',
+        expectedSha: indexFile?.sha ?? null,
+        expectedLastCommit: indexFile?.lastCommit,
+        expectedContent: indexFile?.content ?? null,
+      },
     ]
     if (oldSlug && oldSlug !== meta.slug)
-      changes.push({ path: postPath(oldSlug), content: null as any })
+      changes.push(
+        await this.change(
+          postPath(oldSlug),
+          null,
+          this.expected(postPath(oldSlug)),
+        ),
+      )
     await this.git.commit(
       changes,
       `${oldSlug ? 'update' : 'create'} post: ${meta.title}`,
     )
+    this.snapshots.set(postPath(meta.slug), md)
+    if (oldSlug && oldSlug !== meta.slug)
+      this.snapshots.set(postPath(oldSlug), null)
     this.posts.set(index)
   }
 
   async deletePost(slug: string) {
-    await this.loadIndex()
-    const index = this.posts().filter((p) => p.slug !== slug)
+    const { file: indexFile, items } = await this.readIndex()
+    const post = await this.git.getFile(postPath(slug))
+    if (!post) throw new Error('文章已被删除，请刷新后重试')
+    const index = items.filter((p) => p.slug !== slug)
     await this.git.commit(
       [
-        { path: postPath(slug), content: null },
-        { path: PATH_INDEX, content: JSON.stringify(index, null, 2) + '\n' },
+        {
+          path: postPath(slug),
+          content: null,
+          expectedSha: post.sha,
+          expectedLastCommit: post.lastCommit,
+          expectedContent: post.content,
+        },
+        {
+          path: PATH_INDEX,
+          content: JSON.stringify(index, null, 2) + '\n',
+          expectedSha: indexFile?.sha ?? null,
+          expectedLastCommit: indexFile?.lastCommit,
+          expectedContent: indexFile?.content ?? null,
+        },
       ],
       `delete post: ${slug}`,
     )
+    this.snapshots.set(postPath(slug), null)
     this.posts.set(index)
   }
 
   async loadSettings(): Promise<BlogSettings> {
-    const f = await this.git.getFile(PATH_SETTINGS)
+    const f = await this.loadFile(PATH_SETTINGS)
     const current = this.blog.settings()
     if (!f) return structuredClone(current)
     return { ...structuredClone(current), ...JSON.parse(f.content) }
   }
 
   async saveSettings(s: BlogSettings) {
+    const content = JSON.stringify(s, null, 2) + '\n'
     await this.git.commit(
-      [{ path: PATH_SETTINGS, content: JSON.stringify(s, null, 2) + '\n' }],
+      [await this.change(PATH_SETTINGS, content, this.expected(PATH_SETTINGS))],
       'update settings',
     )
+    this.snapshots.set(PATH_SETTINGS, content)
     this.blog.settings.set(s)
   }
 
   async loadAbout(): Promise<string> {
-    const f = await this.git.getFile(PATH_ABOUT)
+    const f = await this.loadFile(PATH_ABOUT)
     return f?.content ?? ''
   }
 
   async saveAbout(md: string) {
-    await this.git.commit([{ path: PATH_ABOUT, content: md }], 'update about')
+    await this.git.commit(
+      [await this.change(PATH_ABOUT, md, this.expected(PATH_ABOUT))],
+      'update about',
+    )
+    this.snapshots.set(PATH_ABOUT, md)
   }
 }

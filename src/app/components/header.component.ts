@@ -183,7 +183,7 @@ import { ThemeService } from '../services/theme.service'
           <div
             class="fuwari-card absolute top-[68px] right-0 left-0 p-2 md:hidden"
           >
-            @for (m of menus; track m.url) {
+            @for (m of visibleMenus(); track m.url) {
               <a
                 class="fuwari-menu-item flex w-full !py-2.5 !text-sm"
                 [routerLink]="m.url"

@@ -1,5 +1,9 @@
 # 配置说明
 
+验收修复（2026-11-11）：手机与桌面使用相同菜单开关；动态日期锚点留在 `/moments`；仅首段 `/admin` 使用后台布局。生成标题/摘要保留字面美元符号，草稿不打包到公开数据。详见 [验收修复记录](acceptance-fixes.md)。
+
+后台登录密码不在 `data/settings.json` 配置，而是通过“登录密码管理”单独生成并提交 `data/auth.json`；文件只存加密 Token。Token 会话改为 sessionStorage，详见 [后台认证](authentication.md)。
+
 ## 新增站点配置（2026-11-10）
 
 以下字段位于 `data/settings.json`，在后台“站点设置”中编辑。正式站点重新构建后生效；本地演示的主题、布局及页脚可即时预览，RSS 和 manifest 仍以构建文件为准。

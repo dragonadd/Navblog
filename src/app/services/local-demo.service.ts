@@ -72,7 +72,9 @@ export class LocalDemoService {
             ? null
             : change.expectedContent
         if (current !== change.expectedContent)
-          throw new Error('动态已被其他窗口修改，请刷新后重试')
+          throw new Error(
+            '文件已被其他窗口修改，请重新读取后重试；当前输入已保留',
+          )
       }
     }
     for (const change of changes) files[change.path] = change.content

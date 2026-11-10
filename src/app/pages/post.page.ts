@@ -310,7 +310,7 @@ export class PostPage implements OnDestroy {
       const slug = this.slug()
       const m = this.meta()
       this.blog.setTitle(m?.title || '文章不存在')
-      if (m) this.load(slug)
+      void this.load(slug)
     })
     effect(() => this.blog.commentsVisible.set(this.commentsEnabled()))
   }
@@ -325,6 +325,10 @@ export class PostPage implements OnDestroy {
     this.encryptedBody = this.password = ''
     this.unlockError.set('')
     this.unlocking.set(false)
+    if (!this.meta()) {
+      this.loading.set(false)
+      return
+    }
     try {
       const src = await this.blog.getPostSource(slug)
       if (

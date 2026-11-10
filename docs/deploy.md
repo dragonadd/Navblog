@@ -107,7 +107,7 @@ Netlify 会自动监听仓库提交并重新构建。
 4. 点击 **Save and Deploy**。
 5. **Custom domains** 中可以绑定自定义域名（域名托管在 Cloudflare 时最方便）。
 
-单页路由所需的 `_redirects` 文件会在构建时自动生成。
+构建会为后台登录、设置、编辑等没有独立静态文件的路径生成限定的 `_redirects` 回退。Cloudflare 的规则优先于已有资源，不要添加 `/* /index.html 200`，否则 JS、CSS 和 `data/auth.json` 也会被改写为 HTML。文章和碎碎念使用各自预渲染静态页，未知地址使用 `404.html`；Netlify 的通用回退仍由 `netlify.toml` 管理。
 
 ---
 

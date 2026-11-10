@@ -80,17 +80,20 @@ export class AppComponent {
   // 初始化主题
   private theme = inject(ThemeService)
   readonly settings = this.blog.settings
-  readonly url = signal(location.pathname)
-  readonly isAdmin = computed(() => /\/admin(\/|$|\?)/.test(this.url()))
+  readonly url = signal(
+    location.pathname.startsWith(this.blog.config.baseHref)
+      ? location.pathname.slice(this.blog.config.baseHref.length - 1)
+      : location.pathname,
+  )
+  readonly isAdmin = computed(() =>
+    /^\/admin(?:\/|$)/.test(this.url().split(/[?#]/)[0]),
+  )
   readonly showHero = computed(() => {
-    const path =
-      this.url()
-        .split(/[?#]/)[0]
-        .replace(this.blog.config.baseHref.replace(/\/$/, ''), '') || '/'
+    const path = this.url().split(/[?#]/)[0] || '/'
     return !!this.settings().heroEnable && /^(\/|\/page\/\d+\/?)$/.test(path)
   })
   readonly hideSidebar = computed(() => {
-    const match = this.url().match(/\/posts\/([^/?#]+)/)
+    const match = this.url().match(/^\/posts\/([^/?#]+)/)
     if (!match) return false
     try {
       return !!this.blog.findPost(decodeURIComponent(match[1]))?.hideSidebar

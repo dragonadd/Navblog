@@ -12,6 +12,7 @@ import {
   rssContent,
   readMoments,
   momentsHtml,
+  readAuth,
 } from './lib'
 import { renderMarkdown } from '../src/shared/markdown'
 import { parseFrontMatter } from '../src/shared/frontmatter'
@@ -24,6 +25,11 @@ const all = readPostFiles()
 const moments = readMoments()
 const posts = all.filter((p) => !p.meta.draft)
 const dist = PATHS.dist
+const auth = readAuth()
+if (auth) {
+  ensureDir(path.join(dist, 'data'))
+  fs.writeFileSync(path.join(dist, 'data', 'auth.json'), auth)
+} else fs.rmSync(path.join(dist, 'data', 'auth.json'), { force: true })
 // Angular 会在 head 末尾添加主题样式，重新排列专用样式以保持自定义覆盖顺序。
 const template = renderCustomResources(
   fs.readFileSync(path.join(dist, 'index.html'), 'utf8'),
@@ -67,23 +73,23 @@ function renderPage(o: PageOptions): string {
   let html = template
   html = html.replace(
     /<title>[\s\S]*?<\/title>/,
-    `<title>${escapeHtml(title)}</title>`,
+    () => `<title>${escapeHtml(title)}</title>`,
   )
   html = html.replace(
     /<meta name="description" content="[^"]*"\s*\/?>/,
-    `<meta name="description" content="${escapeHtml(desc)}" />`,
+    () => `<meta name="description" content="${escapeHtml(desc)}" />`,
   )
   html = html.replace(
     /<meta property="og:title" content="[^"]*"\s*\/?>/,
-    `<meta property="og:title" content="${escapeHtml(title)}" />`,
+    () => `<meta property="og:title" content="${escapeHtml(title)}" />`,
   )
   html = html.replace(
     /<meta property="og:description" content="[^"]*"\s*\/?>/,
-    `<meta property="og:description" content="${escapeHtml(desc)}" />`,
+    () => `<meta property="og:description" content="${escapeHtml(desc)}" />`,
   )
   html = html.replace(
     /<meta property="og:type" content="[^"]*"\s*\/?>/,
-    `<meta property="og:type" content="${o.type || 'website'}" />`,
+    () => `<meta property="og:type" content="${o.type || 'website'}" />`,
   )
   const head = [
     siteRoot
@@ -100,7 +106,7 @@ function renderPage(o: PageOptions): string {
   ]
     .filter(Boolean)
     .join('\n    ')
-  html = html.replace('</head>', `    ${head}\n  </head>`)
+  html = html.replace('</head>', () => `    ${head}\n  </head>`)
   // 预渲染内容：搜索引擎/禁用 JS 时可见，Angular 启动后移除
   html = html.replace(
     /<app-root>\s*<\/app-root>/,
@@ -336,13 +342,6 @@ write(
   }),
 )
 
-// 草稿不发布到线上
-for (const { meta } of all.filter((p) => p.meta.draft)) {
-  fs.rmSync(path.join(dist, 'content', 'posts', `${meta.slug}.md`), {
-    force: true,
-  })
-}
-
 // ---------- sitemap / RSS / robots ----------
 if (siteRoot) {
   const urls = [
@@ -408,10 +407,22 @@ fs.writeFileSync(
 )
 // GitHub Pages：禁用 Jekyll
 fs.writeFileSync(path.join(dist, '.nojekyll'), '')
-// Cloudflare Pages / Netlify：SPA 回退（已存在的静态文件优先）
+// Cloudflare 规则优先于已有资源，只为缺少静态文件的后台子路由回退。
 fs.writeFileSync(
   path.join(dist, '_redirects'),
-  `${config.baseHref}* ${config.baseHref}index.html 200\n`,
+  [
+    ...['login', 'new', 'settings', 'about', 'moments'].flatMap((route) =>
+      ['', '/'].map(
+        (suffix) =>
+          `${config.baseHref}admin/${route}${suffix} ${config.baseHref}admin/index.html 200`,
+      ),
+    ),
+    `${config.baseHref}admin/edit/* ${config.baseHref}admin/index.html 200`,
+  ].join('\n') + '\n',
+)
+fs.writeFileSync(
+  path.join(dist, '_headers'),
+  `${config.baseHref}data/auth.json\n  Cache-Control: no-store, max-age=0\n`,
 )
 
 console.log(

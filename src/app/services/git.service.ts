@@ -4,6 +4,7 @@ import { Injectable, inject, signal } from '@angular/core'
 import { Base64 } from 'js-base64'
 import { BlogService } from './blog.service'
 import { LocalDemoService } from './local-demo.service'
+import { authIdentity, validateTokenText } from '../../shared/auth'
 
 export type Provider = 'github' | 'gitee' | 'gitlab'
 
@@ -28,7 +29,6 @@ export interface FileChange {
   expectedContent?: string | null
 }
 
-const TOKEN_KEY = 'token'
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 
 export function parseRepo(url: string, defaultBranch = 'main'): RepoInfo {
@@ -75,9 +75,22 @@ export class GitService {
   readonly imageRepo = this.blog.config.imageRepoUrl
     ? parseRepo(this.blog.config.imageRepoUrl, 'image')
     : { ...this.repo, branch: 'image' }
-  readonly token = signal<string>(localStorage.getItem(TOKEN_KEY) || '')
+  readonly sessionKey = `navblog:token:v1:${new URL(document.baseURI).pathname}:${authIdentity(this.repo)}`
+  readonly token = signal<string>(this.readToken())
   readonly user = signal<{ name: string; avatar: string } | null>(null)
   readonly busy = signal(false)
+  private loginVersion = 0
+
+  private readToken(): string {
+    try {
+      localStorage.removeItem('token')
+    } catch {}
+    try {
+      return sessionStorage.getItem(this.sessionKey) || ''
+    } catch {
+      return ''
+    }
+  }
 
   get providerName() {
     return { github: 'GitHub', gitee: 'Gitee', gitlab: 'GitLab' }[
@@ -117,7 +130,7 @@ export class GitService {
     }
     if (token)
       headers['Authorization'] =
-        r.provider === 'gitlab' ? `Bearer ${token}` : `token ${token}`
+        r.provider === 'github' ? `token ${token}` : `Bearer ${token}`
     if (r.provider === 'github')
       headers['Accept'] = 'application/vnd.github+json'
     const res = await fetch(this.apiBase(r) + path, {
@@ -145,51 +158,89 @@ export class GitService {
   isLogin() {
     return !!this.token()
   }
+  cancelPendingLogin() {
+    ++this.loginVersion
+  }
 
-  /** 校验 Token，并要求 Token 所属用户就是仓库所有者 */
-  async login(token: string) {
-    token = token.trim()
+  async validateToken(token: string) {
+    token = validateTokenText(token)
     const r = this.repo
-    const path = r.provider === 'gitlab' ? '/user' : '/user'
-    const data = await this.request('GET', path, undefined, r, token)
+    if (
+      !r.owner ||
+      !r.repo ||
+      !r.branch ||
+      (r.provider === 'github' && r.host !== 'github.com') ||
+      (r.provider === 'gitee' && r.host !== 'gitee.com')
+    )
+      throw new Error('请先配置正确的 Git 仓库地址')
+    const data = await this.request('GET', '/user', undefined, r, token)
     const name = data.login || data.username
-    if (r.owner && name && name.toLowerCase() !== r.owner.toLowerCase()) {
-      // 组织仓库：检查是否有写权限
-      try {
-        await this.request(
-          'GET',
-          r.provider === 'gitlab'
-            ? `/projects/${this.projectPath(r)}`
-            : `/repos/${r.owner}/${r.repo}`,
-          undefined,
-          r,
-          token,
-        )
-      } catch {
-        throw new Error(`Token 用户 ${name} 无权访问仓库 ${r.owner}/${r.repo}`)
-      }
+    if (typeof name !== 'string' || !name) throw new Error('Token 身份校验失败')
+    const repo = await this.request(
+      'GET',
+      r.provider === 'gitlab'
+        ? `/projects/${this.projectPath(r)}`
+        : `/repos/${r.owner}/${r.repo}`,
+      undefined,
+      r,
+      token,
+    )
+    const writable =
+      r.provider === 'gitlab'
+        ? Math.max(
+            repo.permissions?.project_access?.access_level || 0,
+            repo.permissions?.group_access?.access_level || 0,
+          ) >= 30
+        : repo.permissions?.push === true
+    if (!writable || repo.archived)
+      throw new Error(
+        `Token 用户没有仓库 ${r.owner}/${r.repo} 的写权限，或仓库已归档`,
+      )
+    return { name, avatar: data.avatar_url }
+  }
+
+  /** 两种登录入口共用校验，会话存储失败时不留下登录状态。 */
+  async login(token: string) {
+    const version = ++this.loginVersion
+    token = validateTokenText(token)
+    const user = await this.validateToken(token)
+    if (version !== this.loginVersion) throw new Error('登录已取消')
+    try {
+      sessionStorage.setItem(this.sessionKey, token)
+    } catch {
+      throw new Error('无法保存当前标签页会话，请允许 sessionStorage 后重试')
     }
-    localStorage.setItem(TOKEN_KEY, token)
     this.token.set(token)
-    this.user.set({ name, avatar: data.avatar_url })
+    this.user.set(user)
   }
 
   async fetchUser() {
     if (this.demo.active()) return
     if (!this.token() || this.user()) return
+    const token = this.token(),
+      version = this.loginVersion
     try {
-      const data = await this.request('GET', '/user')
-      this.user.set({
-        name: data.login || data.username,
-        avatar: data.avatar_url,
-      })
+      const user = await this.validateToken(token)
+      if (this.token() === token && this.loginVersion === version)
+        this.user.set(user)
     } catch (e: any) {
-      if (e.status === 401) this.logout()
+      if (
+        e.status === 401 &&
+        this.token() === token &&
+        this.loginVersion === version
+      )
+        this.logout()
     }
   }
 
   logout() {
-    localStorage.removeItem(TOKEN_KEY)
+    ++this.loginVersion
+    try {
+      sessionStorage.removeItem(this.sessionKey)
+    } catch {}
+    try {
+      localStorage.removeItem('token')
+    } catch {}
     this.token.set('')
     this.user.set(null)
   }
@@ -210,9 +261,12 @@ export class GitService {
           content = JSON.stringify(this.blog.getMoments())
         else if (path === 'data/about.md')
           content = await this.blog.getAboutSource()
-        else if (/^data\/posts\/[^/]+\.md$/.test(path))
-          content = await this.blog.getPostSource(path.slice(11, -3))
-        else throw new Error('本地演示中无法读取此文件')
+        else if (/^data\/posts\/[^/]+\.md$/.test(path)) {
+          const slug = path.slice(11, -3)
+          content = this.blog.allPosts().some((p) => p.slug === slug)
+            ? await this.blog.getPostSource(slug)
+            : null
+        } else throw new Error('本地演示中无法读取此文件')
       }
       return content === null ? null : { content, sha: 'local-demo' }
     }
@@ -273,15 +327,17 @@ export class GitService {
         changes[0].expectedSha !== undefined
       ) {
         const c = changes[0]
-        if (c.content === null)
-          throw new Error('版本保护提交只支持文件内容更新')
+        if (c.content === null && !c.expectedSha)
+          throw new Error('文件已移除，请刷新状态')
         await this.request(
-          'PUT',
+          c.content === null ? 'DELETE' : 'PUT',
           `/repos/${r.owner}/${r.repo}/contents/${c.path.split('/').map(encodeURIComponent).join('/')}`,
           {
             message,
             branch: r.branch,
-            content: c.base64 ? c.content : Base64.encode(c.content),
+            ...(c.content === null
+              ? {}
+              : { content: c.base64 ? c.content : Base64.encode(c.content) }),
             ...(c.expectedSha ? { sha: c.expectedSha } : {}),
           },
           r,
@@ -316,6 +372,11 @@ export class GitService {
       undefined,
       r,
     )
+    const readRef = { ...r, branch: headSha }
+    for (const c of changes) {
+      if (c.expectedSha !== undefined || c.expectedContent !== undefined)
+        this.assertVersion(c, await this.getFile(c.path, readRef))
+    }
     const tree: any[] = []
     for (const c of changes) {
       if (c.content === null) {
@@ -352,7 +413,7 @@ export class GitService {
     await this.request(
       'PATCH',
       `${base}/git/refs/heads/${encodeURIComponent(r.branch)}`,
-      { sha: commit.sha },
+      { sha: commit.sha, force: false },
       r,
     )
   }
@@ -366,12 +427,18 @@ export class GitService {
     for (const c of changes) {
       const old = await this.getFile(c.path, r)
       const exists = !!old
-      if (c.expectedSha !== undefined && (old?.sha ?? null) !== c.expectedSha)
-        throw new Error('文件已被修改，请刷新后重试')
+      this.assertVersion(c, old)
       if (c.expectedSha && !c.expectedLastCommit)
         throw new Error('无法取得文件版本，请刷新后重试')
       if (c.content === null) {
-        if (exists) actions.push({ action: 'delete', file_path: c.path })
+        if (exists)
+          actions.push({
+            action: 'delete',
+            file_path: c.path,
+            ...(c.expectedLastCommit
+              ? { last_commit_id: c.expectedLastCommit }
+              : {}),
+          })
         continue
       }
       actions.push({
@@ -398,18 +465,20 @@ export class GitService {
     message: string,
     r: RepoInfo,
   ) {
-    for (const c of changes) {
+    // shortcut: Gitee 逐文件写入可能部分提交，获得可用的多文件原子 API 后改为一次提交。
+    const originals = await Promise.all(
+      changes.map((c) => this.getFile(c.path, r)),
+    )
+    changes.forEach((c, i) => this.assertVersion(c, originals[i]))
+    for (const [i, c] of changes.entries()) {
       const path = `/repos/${r.owner}/${r.repo}/contents/${c.path.split('/').map(encodeURIComponent).join('/')}`
-      const old = await this.getFile(c.path, r)
-      if (c.expectedSha !== undefined && (old?.sha ?? null) !== c.expectedSha)
-        throw new Error('文件已被修改，请刷新后重试')
+      const old = originals[i]
       if (c.content === null) {
         if (old) {
           const q = new URLSearchParams({
             sha: old.sha,
             message,
             branch: r.branch,
-            access_token: this.token(),
           })
           await this.request('DELETE', `${path}?${q}`, undefined, r)
         }
@@ -424,6 +493,19 @@ export class GitService {
       if (old) body.sha = old.sha
       await this.request(old ? 'PUT' : 'POST', path, body, r)
     }
+  }
+
+  private assertVersion(
+    change: FileChange,
+    old: { content: string; sha: string } | null,
+  ) {
+    if (
+      (change.expectedSha !== undefined &&
+        (old?.sha ?? null) !== change.expectedSha) ||
+      (change.expectedContent !== undefined &&
+        (old?.content ?? null) !== change.expectedContent)
+    )
+      throw new Error('文件已被修改，请重新读取后重试；当前输入已保留')
   }
 
   /** GitHub：图片分支不存在时创建空分支 */

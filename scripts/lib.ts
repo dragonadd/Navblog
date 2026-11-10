@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import { normalizeThemeSettings } from '../src/shared/theme-settings'
 import { renderMarkdown } from '../src/shared/markdown'
 import { parseMoments, formatMomentDate } from '../src/shared/moments'
+import { parseAuth } from '../src/shared/auth'
 import path from 'node:path'
 import yaml from 'js-yaml'
 import type { BlogConfig, BlogSettings, PostMeta } from '../src/shared/types'
@@ -20,6 +21,7 @@ export const PATHS = {
   postsIndex: path.join(ROOT, 'data', 'posts.json'),
   about: path.join(ROOT, 'data', 'about.md'),
   moments: path.join(ROOT, 'data', 'moments.json'),
+  auth: path.join(ROOT, 'data', 'auth.json'),
   generated: path.join(ROOT, 'src', 'generated'),
   indexTemplate: path.join(ROOT, 'src', 'index.template.html'),
   indexHtml: path.join(ROOT, 'src', 'index.html'),
@@ -76,6 +78,14 @@ export function readMoments() {
   return fs.existsSync(PATHS.moments)
     ? parseMoments(fs.readFileSync(PATHS.moments, 'utf8'))
     : []
+}
+
+export function readAuth(): string | null {
+  if (!fs.existsSync(PATHS.auth)) return null
+  const source = fs.readFileSync(PATHS.auth, 'utf8')
+  return source.trim()
+    ? JSON.stringify(parseAuth(source), null, 2) + '\n'
+    : null
 }
 
 export function momentsHtml(source: string): string {
