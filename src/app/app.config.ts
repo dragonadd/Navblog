@@ -1,4 +1,7 @@
-import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core'
+import {
+  ApplicationConfig,
+  provideZonelessChangeDetection,
+} from '@angular/core'
 import {
   provideRouter,
   withComponentInputBinding,
@@ -12,7 +15,10 @@ export const appConfig: ApplicationConfig = {
     provideRouter(
       routes,
       withComponentInputBinding(),
-      withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
+      withInMemoryScrolling({
+        scrollPositionRestoration: 'top',
+        anchorScrolling: 'enabled',
+      }),
     ),
   ],
 }

@@ -6,6 +6,8 @@
 
 Fuwari 风格主题 · Markdown 文章 · Git 仓库即数据库 · 零服务器 · 零数据库
 
+Angular 21 + TypeScript + Tailwind CSS 4。最新功能说明更新于 **2026-11-10**。
+
 [功能](#-功能) · [快速开始](#-快速开始) · [部署教程](#-部署教程) · [后台使用](#-后台使用) · [配置](#-配置说明) · [常见问题](#-常见问题)
 
 </div>
@@ -26,12 +28,18 @@ Fuwari 风格主题 · Markdown 文章 · Git 仓库即数据库 · 零服务器
 
 **前台**
 
-- 首页文章列表（置顶、封面图、分页）、文章页、归档、分类、标签、全文搜索、关于页、404
+- 首页文章列表（置顶、封面容错、分页或自动加载）、文章页、年月归档、分类、标签、关于页、404
+- 站内搜索覆盖标题、公开摘要、分类和标签，支持关键词高亮
+- **文章密码加密**：浏览器原生 Web Crypto，保存前加密正文，访客输入密码阅读
+- **碎碎念 `/moments`**：头像、时间和短文本时间线，保留换行
 - Markdown：代码高亮 + 一键复制、目录（TOC，随滚动高亮）、表格、任务列表、图片懒加载
 - Giscus 评论（随深色模式自动切换主题）
-- 主题色相调色盘（访客可调，也可固定）、深色模式（默认跟随系统）
+- 主题色相调色盘（HEX 复制、固定色相）、深浅色（系统／固定／定时切换），访客可恢复站点默认外观
+- 侧栏便签公告（可关闭）、最新文章、联系翻转卡片；桌面侧栏可反转，文章可全宽阅读
+- 每日文字：多个接口来源独立按天缓存；自定义 `{date} {time} {weekday} {month} {day}` 变量，时间自动更新
+- 自定义 CSS、外部 CSS／JS、ICP备案与公安备案、RSS 开关及全文／摘要模式、PWA 安装参数
 - 响应式布局，手机端友好
-- **SEO**：构建时为每篇文章生成独立的静态 HTML（标题、描述、Open Graph、JSON-LD、正文预渲染），并生成 `sitemap.xml`、`rss.xml`、`robots.txt`
+- **SEO**：构建文章及碎碎念静态 HTML，生成 Open Graph、JSON-LD、`sitemap.xml`、`robots.txt` 和可选 RSS；加密文章只预渲染公开信息和解锁提示
 
 **后台 `/admin`**
 
@@ -40,13 +48,16 @@ Fuwari 风格主题 · Markdown 文章 · Git 仓库即数据库 · 零服务器
 - 图片上传：粘贴、拖拽或按钮上传，自动存到图片分支并返回 CDN 地址
 - 站点设置：标题、头像、横幅、社交链接、菜单、分页、版权协议、Giscus、页脚 HTML……
 - 编辑「关于」页
+- 加密文章解锁编辑、修改密码和重新加密
+- 碎碎念发布／编辑／删除，Git 文件版本核验避免静默覆盖，删除需页内确认
+- **本地演示无需 Token**：在浏览器中试写文章和修改设置，可导出已保存的演示文件
 - 保存即提交（GitHub 上一次保存只产生一次提交）
 
 ## 🚀 快速开始
 
 > 只想快速上线？跳过本地步骤，直接看 [部署教程](#-部署教程)，全程只需要浏览器。
 
-需要 [Node.js](https://nodejs.org/) ≥ 20 和 [pnpm](https://pnpm.io/)（`npm i -g pnpm`）。
+建议使用 [Node.js](https://nodejs.org/) **22.12 或更新的 22 LTS**，或 Node.js 24；配合 [pnpm](https://pnpm.io/) 10（`npm i -g pnpm@10`）。
 
 ```bash
 # 1. Fork 本仓库后 clone 你自己的仓库
@@ -73,6 +84,13 @@ git add . && git commit -m "init my blog" && git push
 | `pnpm run new "文章标题"` | 在 `data/posts/` 下新建一篇文章 |
 | `pnpm run build` | 构建到 `dist/browser` |
 | `pnpm run preview` | 预览构建产物 http://localhost:4173 |
+| `pnpm exec tsx scripts/preview.ts 7002` | 将已构建产物预览在 http://localhost:7002；不会自动重建 |
+
+### 无需 Token 的本地演示
+
+启动后打开 `/admin`，选择 **进入本地演示（无需 Token）**。可编辑文章、碎碎念、关于页和站点设置，保存后点击“查看博客”预览。
+
+**演示修改只存在于当前浏览器，不会写回项目或 Git。** 刷新保留副本，退出演示恢复构建内容；换浏览器不会共享数据。“导出演示数据”可复制已保存的 JSON 文件映射，用于备份或核对后同步到项目。正式发布请修改项目 `data/` 文件，或使用 Token 登录后提交到仓库。
 
 ## 🌍 部署教程
 
@@ -127,7 +145,7 @@ git add . && git commit -m "init my blog" && git push
    - Framework preset：**None**
    - Build command：`pnpm run build`
    - Build output directory：`dist/browser`
-   - 环境变量：`NODE_VERSION` = `22`
+   - 环境变量：`NODE_VERSION` = `22`（使用 22.12 或更新版本）
 3. 点击 **Save and Deploy**。单页路由所需的 `_redirects` 会在构建时自动生成。
 
 </details>
@@ -157,7 +175,9 @@ git add . && git commit -m "init my blog" && git push
 2. **文章** → **写文章**：填写标题、分类、标签、封面，在编辑器里写 Markdown，`Ctrl+S` 保存。
 3. 保存后等待 1～2 分钟（托管平台重新构建），刷新前台即可看到新文章。
 
-> 🔒 Token 只保存在当前浏览器的 localStorage 中，不会上传到任何第三方。请勿在公共电脑上登录，用完可点击「退出」。
+其他入口：`/admin/moments` 管理碎碎念，`/admin/about` 编辑关于页，`/admin/settings` 配置主题、公告、每日文字、RSS、PWA 等。
+
+> 🔒 Token 保存在当前浏览器的 localStorage 中，作为请求凭据直接发送给配置的 Git 平台 API。请勿在公共电脑上登录，用完可点击“退出”；自定义脚本只使用可信来源。
 
 详细说明见 [docs/admin.md](./docs/admin.md)。
 
@@ -175,7 +195,9 @@ siteUrl: https://blog.example.com                           # 站点域名（不
 baseHref: /                                                 # 部署子路径，GitHub Pages 会自动识别
 ```
 
-**`data/settings.json`** —— 站点外观与功能，推荐在后台 **站点设置** 中修改。包括标题、副标题、头像、Favicon、横幅图、主题色、每页文章数、社交链接、菜单、版权协议、Giscus 评论、页脚 HTML、自定义 `<head>` 代码、不蒜子统计等。
+**`data/settings.json`** —— 站点外观与功能，推荐在后台 **站点设置** 中修改。包括主题及定时深色、横幅、侧栏布局、公告、每日文字、社交链接、RSS、PWA、备案、评论、版权和自定义资源。
+
+**`data/moments.json`** —— 碎碎念数组，通过后台管理；ID 稳定，时间使用带时区的 ISO 格式，正文为纯文本。初始为空数组。
 
 完整字段说明见 [docs/config.md](./docs/config.md)。
 
@@ -195,10 +217,25 @@ cover: https://...jpg       # 可选，封面图
 pinned: true                # 可选，置顶
 draft: false                # 可选，草稿不会出现在前台
 comments: true              # 可选，是否开启评论
+hideSidebar: true           # 可选，全宽阅读
 ---
 
 正文……
 ```
+
+### 加密文章
+
+在后台编辑器勾选“文章密码加密”，填写并确认至少 12 个字符的密码。正文用 AES-256-GCM 加密，密码通过 PBKDF2-SHA-256 派生密钥；保存到仓库的是公开元信息和密文，密码不会写入文件。阅读和再次编辑均需解锁。
+
+标题、摘要、分类、标签、封面与独立附件仍公开。加密文章只使用手写的公开摘要，留空显示加密提示；搜索、RSS 和静态页面不输出私密正文。不要给明文文章手写 `encrypted: true` 或保存密码字段。已经公开的 Git 明文历史不会因加密而消失。
+
+详见 [文章加密](./docs/post-encryption.md) 和 [碎碎念](./docs/moments.md)。
+
+### 每日文字与安装参数
+
+自定义文字支持 `{date} {time} {weekday} {month} {day}`。`{time}` 使用访客设备本地时间，格式为 `HH:mm`；刷新立即更新，页面打开时随分钟变化，不会因此重新请求接口一言。
+
+PWA 提供名称、颜色、Apple touch 图标及 192／512 PNG 安装图标配置，支持部署子路径；安装 PNG 文件放在 `public/`，构建校验尺寸。当前未提供 Service Worker 或离线阅读，浏览器是否显示安装入口取决于其条件。
 
 ## 🗂️ 目录结构
 
@@ -209,10 +246,11 @@ data/
   posts.json            文章索引（构建时自动生成，无需手动维护）
   settings.json         站点设置（后台「站点设置」编辑的就是它）
   about.md              关于页
+  moments.json          碎碎念（ID、ISO 时间、纯文本、可选更新时间）
 public/                 静态资源（favicon、默认头像等），原样复制到站点根目录
 scripts/                构建脚本（prepare / postbuild / preview / new-post / init）
 src/app/                前台页面与组件；src/app/admin 为后台
-src/shared/             前台、后台、构建脚本共用的 front matter / Markdown 模块
+src/shared/             文章解析、加密、动态校验、主题与每日文字等共用模块
 docs/                   详细文档
 ```
 
@@ -223,6 +261,13 @@ docs/                   详细文档
 
 - 检查 `blog.config.yaml` 中的 `gitRepoUrl` 是否已改成**你自己的仓库**，并且已经重新部署。
 - 检查 Token 是否勾选了对应权限、是否过期；Fine-grained Token 需要在 Repository access 中选中该仓库。
+
+</details>
+
+<details>
+<summary>本地演示保存了，但重新构建或换浏览器后没有修改</summary>
+
+演示保存只更新当前浏览器副本。请通过“导出演示数据”备份并核对后同步到项目，或在正式后台用 Token 提交。构建读取项目文件，不能自动读取浏览器存储。
 
 </details>
 
@@ -253,6 +298,7 @@ GitHub 图片默认通过 jsDelivr CDN 访问，首次上传后可能需要几�
 
 - [xjh22222228/nav](https://github.com/xjh22222228/nav) —— 「纯静态 + Git API 在线编辑」架构来源，本项目基于它改造（GPL-3.0）
 - [saicaca/fuwari](https://github.com/saicaca/fuwari) —— 主题设计参考
+- Handsome 时光机 —— 碎碎念时间线的 UI 结构参考；本项目使用 Angular 重写，未引入 PHP
 - [Angular](https://angular.dev/)、[Tailwind CSS](https://tailwindcss.com/)、[marked](https://marked.js.org/)、[highlight.js](https://highlightjs.org/)、[Font Awesome](https://fontawesome.com/)、[Giscus](https://giscus.app/)
 
 ## 📄 License

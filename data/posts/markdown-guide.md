@@ -1,9 +1,13 @@
 ---
-title: "Markdown 写作示例"
-date: "2026-11-07 10:30"
-category: "教程"
-tags: ["Markdown", "写作"]
-cover: "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=1200&q=80"
+title: Markdown 写作示例
+date: 2026-11-07 10:30
+updated: 2026-11-10 02:11
+category: 教程
+tags:
+  - Markdown
+  - 写作
+cover: missing-cover.png
+hideSidebar: true
 ---
 
 这篇文章展示了博客支持的 Markdown 语法，写文章时可以参考。

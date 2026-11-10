@@ -11,19 +11,28 @@
     <meta name="renderer" content="webkit" />
     <!-- blog:title -->
     <!-- blog:meta -->
-    <link rel="manifest" href="manifest.webmanifest" />
+    <!-- blog:pwa -->
     <!-- blog:theme -->
     <script>
       ;(function () {
+        var d = null,
+          storedHue = ''
         try {
-          var d = localStorage.getItem('blog-dark')
-          var dark = d ? d === '1' : window.matchMedia('(prefers-color-scheme: dark)').matches
-          if (dark) document.documentElement.classList.add('dark')
-          var hue = parseInt(localStorage.getItem('fuwari-theme-hue') || '', 10)
-          if (isNaN(hue)) hue = window.__BLOG_HUE__ || 52
-          window.__BLOG_CURRENT_HUE__ = hue
-          document.documentElement.style.setProperty('--hue', String(hue))
+          d = localStorage.getItem('blog-dark')
+          storedHue = localStorage.getItem('fuwari-theme-hue') || ''
         } catch (e) {}
+        var dark = window.__BLOG_RESOLVE_DARK__(
+          window.__BLOG_APPEARANCE__,
+          d,
+          window.matchMedia('(prefers-color-scheme: dark)').matches,
+        )
+        document.documentElement.classList.toggle('dark', dark)
+        var hue = parseInt(storedHue, 10)
+        if (!Number.isFinite(hue) || window.__BLOG_THEME_FIXED__)
+          hue = window.__BLOG_HUE__ ?? 52
+        hue = Math.min(360, Math.max(0, hue))
+        window.__BLOG_CURRENT_HUE__ = hue
+        document.documentElement.style.setProperty('--hue', String(hue))
       })()
     </script>
     <!-- blog:head -->

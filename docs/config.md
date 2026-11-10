@@ -1,5 +1,31 @@
 # 配置说明
 
+## 新增站点配置（2026-11-10）
+
+以下字段位于 `data/settings.json`，在后台“站点设置”中编辑。正式站点重新构建后生效；本地演示的主题、布局及页脚可即时预览，RSS 和 manifest 仍以构建文件为准。
+
+| 字段 | 行为与默认值 |
+| --- | --- |
+| `appearance` | `system`（默认，跟随系统）、`light`、`dark`、`auto`（按时段） |
+| `darkStart` / `darkEnd` | 0–23 整数小时，默认 22 / 7；开始包含，结束不包含；支持跨午夜，同起止表示全天浅色。按访客浏览器本地时间判断 |
+| `sidebarReverse` | 默认 false；开启后桌面侧栏在右侧，手机正文顺序及全宽文章保持原行为 |
+| `beiAn` / `beiAnLink` | ICP 备案号及 HTTP(S) 查询链接；未填不显示，链接默认工信部查询网站 |
+| `beiAnGongan` | 公安备案文字；提取其中的备案数字生成官方查询链接，无数字时链接到查询首页 |
+| `rssEnable` | 默认 true；关闭后构建不输出 rss.xml，HTML 订阅头及侧栏本站 RSS 链接也隐藏 |
+| `rssFullContent` | 默认 true；false 时普通文章只输出公开摘要。加密文章在任何模式下均不输出私密正文 |
+| `pwaEnable` | 默认 true，保留原有 manifest 功能；关闭后不输出 manifest 或受控的安装相关头标签 |
+| `pwaName` / `pwaShortName` | 名称可留空，回退到站点标题；简称可留空，回退到安装名称 |
+| `pwaIcon` | 可选 Apple touch 图标，HTTPS 或站内路径；与安装图标分开 |
+| `pwaIcon192` / `pwaIcon512` | 安装 PNG 相对路径，文件位于 public/，默认 icons/icon-192x192.png / icons/icon-512x512.png；构建校验尺寸 |
+| `pwaIcon192Maskable` / `pwaIcon512Maskable` | 可选 Maskable PNG，相同路径和尺寸要求；图案需自行留足安全区 |
+| `pwaThemeColor` / `pwaBackgroundColor` | 六位 HEX，默认 #b8a320 / #ffffff |
+
+访客手动深浅色选择优先；顶栏“恢复站点默认外观”清除这个偏好，恢复系统或定时判断。系统变化、页面唤醒和最长 30 秒轮询更新自动模式；存储被禁用时仍能使用当前页面主题。
+
+PWA 本轮仅落地安装参数；未添加 Service Worker 或离线缓存，也不保证所有浏览器会展示安装按钮。安装图标只支持本地 PNG，不在构建时下载远程图标。`baseHref` 会写入 manifest 的 scope、start_url 和安装图标 URL。`headHtml` 中手写的其他标签仍由管理员自行管理。
+
+验证：`scripts/test-site-options.ts`、`scripts/test-site-output.ts`、`scripts/test-site-build.ts`；全套 61 项测试与 RSS/PWA 开关、子路径、加密泄漏扫描两组真实构建通过。浏览器验证主题/手动恢复、RSS 入口、备案、侧栏反转、手机顺序和全宽。
+
 ## blog.config.yaml
 
 构建时读取，修改后需要重新构建（提交到仓库即可自动构建）。
@@ -50,6 +76,89 @@
 | `themeFixed` | 为 `true` 时隐藏调色盘，固定使用默认色相 |
 | `postsPerPage` | 每页文章数 |
 | `showCover` | 文章列表是否显示封面图 |
+
+### 今日一言
+
+主页文章列表上方显示每日文字卡片。在后台 **站点设置 → 每日一言 / 每日文字** 修改，支持多个文字来源和自定义文字。图片不参与获取或展示。
+
+| 字段 | 说明 |
+| --- | --- |
+| `hitokotoEnable` | 是否启用每日文字，默认开启；关闭后不显示卡片、不请求接口 |
+| `hitokotoShowTitle` | 是否显示卡片标题，默认开启；关闭后保留正文和出处 |
+| `hitokotoTitle` | 卡片标题，默认“今日一言” |
+| `hitokotoSources` | 每行一个来源，最多 5 个；内置名或完整 HTTP(S) 地址 |
+| `hitokotoCustomText` | 自定义文字，可独立使用；支持多行与日期变量 |
+| `hitokotoShowFrom` | 是否显示作者与出处；单源“正文/出处”覆盖此设置 |
+| `hitokotoMaxLength` | 每个来源显示的最大字数，100～4000，默认 1200 |
+| `hitokotoApi` | 兼容旧版单一 API 配置；没有 `hitokotoSources` 时沿用，留空默认一言 |
+
+内置来源参考 `daily-push`：`hitokoto`（一言）、`jinrishici`（今日诗词）、`xygeng`（随机句子）、`60s`（每日新闻）、`history`（历史上的今天）。不接入图片源或消息推送功能。
+
+来源写法：
+
+```text
+hitokoto
+今日诗词 | jinrishici | 出处
+随机句子 | xygeng | 正文
+我的早报 | https://example.com/today | data.news
+https://example.com/quote | data.content
+```
+
+地址后的字段路径可省略，程序会优先识别 `hitokoto`、`content`、`text`、`news` 等正文，再查找嵌套内容。支持字符串数组（按行编号）、JSON 字符串和纯文本。明确填写字段路径却取不到内容时会报错，不会擅自显示其他字段。HTML 错误页、图片地址和错误消息不会用作正文。
+
+自定义文字示例：`今天是 {date}，{weekday}，记得记录生活。`。支持 `{date}`、`{time}`、`{weekday}`、`{month}`、`{day}`，以及实际换行或 `\n`。`{time}` 使用访客浏览器当前本地时间（HH:mm）；刷新立即更新，含 `{time}` 的文字在页面打开时自动更新时间，重新唤醒标签页立即校准。自定义文字不再使用按天缓存，接口一言仍独立按天缓存，不因时钟更新重复请求。只用自定义文字时将来源清空。
+
+每位访客按本地日期、接口地址、解析类型和字段路径缓存，各来源独立、并发获取。当天刷新复用，次日更新；页面保持打开时在午夜更新，标签页唤醒时检查日期。修改标题、出处或显示长度会复用正文缓存。失败来源可重试，已成功的来源不会重复请求；禁用 localStorage 时保留页面内存缓存。
+
+外部接口需支持浏览器 CORS，HTTPS 站点使用 HTTPS 接口。公共接口可用性由提供方决定。不要在公开配置中填写私密 API 密钥：纯静态前端无法保密。构建不请求外部接口；本地演示保存后点击“查看博客”即可预览，正式模式保存到 Git 后重新部署生效。
+
+### 主页公告
+
+后台 **站点设置 → 主页公告** 可配置，公告显示在侧栏头像卡片下方，呈极简便签样式；标题和喇叭图标不显示，正文保留换行，关闭按钮位于右上角。隐藏侧栏的页面也不显示公告。缺省配置不启用，不请求任何外部接口。
+
+| 字段 | 说明 |
+| --- | --- |
+| `announcementEnable` | 是否启用，默认 `false` |
+| `announcementTitle` | 兼容保留的标题字段，不在卡片展示；仍参与公告版本判断 |
+| `announcementText` | 纯文本正文，保留换行，不解析 HTML 或 Markdown |
+| `announcementLink` | 可选“查看详情”链接，允许 HTTP(S) 或站内路径；不允许执行协议、登录凭据、协议相对地址或反斜线 |
+| `announcementClosable` | 是否允许访客关闭，默认 `true` |
+
+关闭状态保存在当前站点来源、部署子路径对应的 localStorage 中，刷新和重新访问仍保留。标题、文本或链接任一变化会形成新公告版本并再次展示。禁用公告不删除关闭记录；禁止关闭时不受旧关闭记录影响。不同标签页会同步关闭状态；浏览器禁止存储时仍可在当前页面关闭，但刷新后可能再次展示。
+
+外部链接在新窗口打开并使用 `noopener noreferrer`；站内路径按站点 `baseHref` 解析。正式站点保存并部署后生效；本地演示保存后返回主页即可预览。公告由 Angular 渲染，未额外加入无 JavaScript 的预渲染占位内容。
+
+### 自定义 CSS / 外部资源
+
+后台 **站点设置 → 自定义 CSS / 外部资源** 提供 CSS 文本及每行一个的 CSS/JS 地址输入。保存时地址转为 JSON 数组。两开关只控制专用字段，原 `headHtml` 中的手工内容仍独立生效。
+
+| 字段 | 说明 |
+| --- | --- |
+| `customCssEnable` | 是否注入本区内联 CSS 和外部 CSS，默认 `true`；内容为空时不注入 |
+| `customCss` | 原始 CSS 规则，不含 `<style>` 或 `<script>` 标签 |
+| `customExternalCss` | 外部 CSS 地址数组，默认 `[]` |
+| `customJsEnable` | 是否注入本区外部脚本，默认 `true`；列表为空时不注入 |
+| `customExternalJs` | 外部 JS 地址数组，默认 `[]`，按顺序使用 `defer` 加载执行 |
+
+```json
+{
+  "customCssEnable": true,
+  "customCss": ".fuwari-footer { font-size: 14px; }",
+  "customExternalCss": ["https://example.com/custom.css"],
+  "customJsEnable": true,
+  "customExternalJs": ["scripts/custom.js", "https://example.com/widget.js"]
+}
+```
+
+外部资源必须使用完整 HTTPS 地址，或站内路径；拒绝 HTTP 外部资源、协议相对地址 `//host/...`、`javascript:` / `data:`、登录凭据及控制字符。`scripts/custom.js` 相对 `<base href>`（子路径部署时如 `/blog/scripts/custom.js`），`/scripts/custom.js` 按标准 URL 语义从域名根路径加载。站内资源可放入 `public/`。
+
+构建时将地址规范化、忽略锚点、保留查询参数并去重。同类资源在专用列表与已有 HTML（包括 `headHtml`）重复时只补入缺少的项目；相同内联 CSS 也不重复添加。旧 `headHtml` 内容不会被改写，本来就手写重复的标签应自行清理。自定义样式在生产构建后排到主题样式之后，外部 CSS 在本区内联 CSS 之前。
+
+新外部标签使用 `crossorigin="anonymous"`、`referrerpolicy="no-referrer"`，跨域请求不附带第三方登录凭据或页面来源；外部服务器需返回允许本站来源的 CORS 响应头，否则浏览器会拒绝加载。不会通过代理或关闭浏览器策略绕过 CORS。内联 CSS 防止闭合样式标签并注入脚本，但 CSS 本身仍可引用网络资源，应只配置可信内容。
+
+外部脚本运行在站点页面中，拥有与本站脚本相同的页面权限，跨域属性不能隔离它们；可能读取浏览器中保存的数据（包括后台 Token）。专用资源会进入所有站点 HTML，包括后台；请使用可信资源。关闭本区开关不会删除高级 `headHtml` 中同名资源。
+
+这些设置需要重新构建，`pnpm start` / `pnpm run build` 会读取本地配置；本地演示只保存浏览器副本，不会立刻注入 CSS 或执行新脚本。刷新、切换 Angular 路由不会重复注入；更换配置后重新部署会更新对应资源。
 
 ### 社交链接与菜单
 

@@ -29,10 +29,7 @@ import { ThemeService } from './services/theme.service'
         </main>
       } @else {
         @if (showHero()) {
-          <div
-            class="fuwari-hero"
-            [style.background-image]="heroBg()"
-          >
+          <div class="fuwari-hero" [style.background-image]="heroBg()">
             @if (settings().heroCreditText) {
               <a
                 class="fuwari-hero-credit"
@@ -40,7 +37,8 @@ import { ThemeService } from './services/theme.service'
                 target="_blank"
                 rel="noopener"
               >
-                <i class="fas fa-camera mr-1"></i>{{ settings().heroCreditText }}
+                <i class="fas fa-camera mr-1"></i
+                >{{ settings().heroCreditText }}
               </a>
             }
           </div>
@@ -50,11 +48,19 @@ import { ThemeService } from './services/theme.service'
           [class.fuwari-main-overlap]="showHero()"
           [class.fuwari-main-plain]="!showHero()"
         >
-          <div class="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-6">
-            <div class="order-2 min-w-0 lg:order-1">
-              <app-sidebar />
-            </div>
-            <div class="order-1 min-w-0 lg:order-2">
+          <div
+            class="grid grid-cols-[minmax(0,1fr)] gap-4 lg:gap-6"
+            [class.fuwari-with-sidebar]="!hideSidebar()"
+            [class.fuwari-sidebar-reverse]="
+              !hideSidebar() && settings().sidebarReverse
+            "
+          >
+            @if (!hideSidebar()) {
+              <div class="fuwari-sidebar-column order-2 min-w-0 lg:order-1">
+                <app-sidebar />
+              </div>
+            }
+            <div class="fuwari-content-column order-1 min-w-0 lg:order-2">
               <router-outlet />
             </div>
           </div>
@@ -76,8 +82,25 @@ export class AppComponent {
   readonly settings = this.blog.settings
   readonly url = signal(location.pathname)
   readonly isAdmin = computed(() => /\/admin(\/|$|\?)/.test(this.url()))
-  readonly showHero = computed(() => !!this.settings().heroEnable && !!this.settings().heroImage)
-  readonly heroBg = computed(() => `url("${this.blog.url(this.settings().heroImage)}")`)
+  readonly showHero = computed(() => {
+    const path =
+      this.url()
+        .split(/[?#]/)[0]
+        .replace(this.blog.config.baseHref.replace(/\/$/, ''), '') || '/'
+    return !!this.settings().heroEnable && /^(\/|\/page\/\d+\/?)$/.test(path)
+  })
+  readonly hideSidebar = computed(() => {
+    const match = this.url().match(/\/posts\/([^/?#]+)/)
+    if (!match) return false
+    try {
+      return !!this.blog.findPost(decodeURIComponent(match[1]))?.hideSidebar
+    } catch {
+      return false
+    }
+  })
+  readonly heroBg = computed(
+    () => `url("${this.blog.url(this.settings().heroImage)}")`,
+  )
 
   constructor() {
     // 移除构建时注入的预渲染内容
@@ -88,9 +111,12 @@ export class AppComponent {
     this.loadBusuanzi()
     // 文章中的代码复制按钮（事件委托）
     document.addEventListener('click', (ev) => {
-      const btn = (ev.target as HTMLElement).closest?.('.code-copy') as HTMLElement | null
+      const btn = (ev.target as HTMLElement).closest?.(
+        '.code-copy',
+      ) as HTMLElement | null
       if (!btn) return
-      const code = btn.closest('.code-block')?.querySelector('code')?.textContent || ''
+      const code =
+        btn.closest('.code-block')?.querySelector('code')?.textContent || ''
       navigator.clipboard?.writeText(code).then(() => {
         btn.innerHTML = '<i class="fas fa-check"></i>'
         setTimeout(() => (btn.innerHTML = '<i class="far fa-copy"></i>'), 1500)

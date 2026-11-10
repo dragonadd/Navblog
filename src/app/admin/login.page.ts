@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router'
 import { GitService } from '../services/git.service'
 import { ToastService } from '../services/toast.service'
 import { BlogService } from '../services/blog.service'
+import { LocalDemoService } from '../services/local-demo.service'
 
 @Component({
   selector: 'app-login-page',
@@ -34,6 +35,14 @@ import { BlogService } from '../services/blog.service'
             @if (loading()) { <i class="fas fa-spinner fa-spin"></i> } 登录
           </button>
           <p class="fuwari-muted text-center text-xs">Token 仅保存在当前浏览器的 localStorage 中，直接与 Git 平台 API 通信。</p>
+          @if (demo.available) {
+            <div class="border-t border-[var(--fuwari-border)] pt-4">
+              <button type="button" class="fuwari-btn w-full !py-2.5" (click)="enterDemo()" [disabled]="loading()">
+                <i class="fas fa-laptop"></i>进入本地演示（无需 Token）
+              </button>
+              <p class="fuwari-muted mt-2 text-center text-xs">预览文章与设置，修改只保存在当前浏览器，不提交到仓库。</p>
+            </div>
+          }
           <a routerLink="/" class="fuwari-link text-center text-sm"><i class="fas fa-arrow-left mr-1"></i>返回博客</a>
         </form>
       </div>
@@ -41,6 +50,7 @@ import { BlogService } from '../services/blog.service'
   `,
 })
 export class LoginPage {
+  readonly demo = inject(LocalDemoService)
   readonly git = inject(GitService)
   readonly blog = inject(BlogService)
   private toast = inject(ToastService)
@@ -50,7 +60,13 @@ export class LoginPage {
 
   constructor() {
     this.blog.setTitle('登录')
-    if (this.git.isLogin()) this.router.navigateByUrl('/admin')
+    if (this.demo.active() || this.git.isLogin()) this.router.navigateByUrl('/admin')
+  }
+
+  enterDemo() {
+    this.demo.enter()
+    this.blog.refreshDemo()
+    this.router.navigateByUrl('/admin')
   }
 
   async submit(e: Event) {

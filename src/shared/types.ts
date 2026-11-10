@@ -2,6 +2,9 @@
 // Based on https://github.com/xjh22222228/nav (GPL-3.0)
 
 export interface PostMeta {
+  /** 正文为 Web Crypto 密文；标题、摘要、分类和封面仍公开。 */
+  encrypted?: boolean
+  hideSidebar?: boolean
   slug: string
   title: string
   /** 发布时间 YYYY-MM-DD 或 YYYY-MM-DD HH:mm */
@@ -19,6 +22,13 @@ export interface PostMeta {
   comments?: boolean
   /** 字数（构建/保存时统计） */
   words?: number
+}
+
+export interface Moment {
+  id: string
+  date: string
+  text: string
+  updated?: string
 }
 
 export interface SocialLink {
@@ -49,6 +59,62 @@ export interface GiscusConfig {
 }
 
 export interface BlogSettings {
+  appearance?: 'system' | 'light' | 'dark' | 'auto'
+  darkStart?: number
+  darkEnd?: number
+  sidebarReverse?: boolean
+  beiAn?: string
+  beiAnLink?: string
+  beiAnGongan?: string
+  rssEnable?: boolean
+  rssFullContent?: boolean
+  pwaEnable?: boolean
+  pwaName?: string
+  pwaShortName?: string
+  pwaIcon?: string
+  pwaIcon192?: string
+  pwaIcon512?: string
+  pwaIcon192Maskable?: string
+  pwaIcon512Maskable?: string
+  pwaThemeColor?: string
+  pwaBackgroundColor?: string
+  coverWidth?: number
+  coverDefault?: boolean
+  coverHover?: boolean
+  showSummary?: boolean
+  showListTags?: boolean
+  listMode?: 'page' | 'scroll'
+  latestPosts?: boolean
+  contactEnable?: boolean
+  contactFlip?: boolean
+  contactTitle?: string
+  contactDescription?: string
+  contactBadge?: string
+  contactUrl?: string
+  contactText?: string
+  contactBackTitle?: string
+  contactBackDescription?: string
+  contactBackText?: string
+  profilePath?: string
+  sidebarCategories?: boolean
+  sidebarTags?: boolean
+  sidebarStats?: boolean
+  articleToc?: boolean
+  floatComment?: boolean
+  floatDark?: boolean
+  articleCover?: boolean
+  articleCoverTop?: boolean
+  articleMeta?: boolean
+  articleShare?: boolean
+  articleCopyright?: boolean
+  articleAdjacent?: boolean
+  articleComment?: boolean
+  mobileMenu?: boolean
+  menuHome?: boolean
+  menuArchive?: boolean
+  menuCategories?: boolean
+  menuTags?: boolean
+  menuSearch?: boolean
   title: string
   subtitle: string
   description: string
@@ -69,6 +135,22 @@ export interface BlogSettings {
   postsPerPage: number
   /** 列表卡片显示封面 */
   showCover: boolean
+  /** 一言 API 地址；留空使用 https://v1.hitokoto.cn，兼容旧版设置。 */
+  hitokotoApi?: string
+  /** 每日文字设置，兼容仅有 hitokotoApi 的旧配置。 */
+  hitokotoEnable?: boolean
+  hitokotoShowTitle?: boolean
+  hitokotoTitle?: string
+  hitokotoSources?: string
+  hitokotoCustomText?: string
+  hitokotoShowFrom?: boolean
+  hitokotoMaxLength?: number
+  /** 主页公告；缺省不启用。文本为纯文本，保留换行。 */
+  announcementEnable?: boolean
+  announcementTitle?: string
+  announcementText?: string
+  announcementLink?: string
+  announcementClosable?: boolean
   social: SocialLink[]
   /** 额外顶部菜单 */
   menus: MenuLink[]
@@ -79,6 +161,12 @@ export interface BlogSettings {
   footerHtml: string
   /** 注入到 <head> 的自定义 HTML（统计脚本等） */
   headHtml: string
+  /** 专用样式和脚本设置，正式站点重新构建后生效。 */
+  customCssEnable?: boolean
+  customCss?: string
+  customExternalCss?: string[]
+  customJsEnable?: boolean
+  customExternalJs?: string[]
   /** 不蒜子访问统计 */
   busuanzi: boolean
   /** jsDelivr 等 GitHub CDN 域名 */

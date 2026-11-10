@@ -1,26 +1,54 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core'
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
 import { BlogService } from '../services/blog.service'
+import { ScrollPostListComponent } from '../components/scroll-post-list.component'
 import { PostListComponent } from '../components/post-list.component'
 
 @Component({
   selector: 'app-search-page',
-  imports: [FormsModule, PostListComponent],
+  imports: [FormsModule, PostListComponent, ScrollPostListComponent],
   template: `
     <div class="fuwari-card mb-4 p-6">
-      <div class="fuwari-muted text-xs font-semibold tracking-widest uppercase">Search</div>
+      <div class="fuwari-muted text-xs font-semibold tracking-widest uppercase">
+        Search
+      </div>
       <h1 class="mt-1 text-3xl font-bold">搜索</h1>
       <form class="mt-4 flex gap-2" (submit)="submit($event)">
-        <input class="fuwari-input" name="kw" [ngModel]="kw()" (ngModelChange)="kw.set($event)" placeholder="输入关键词，搜索标题、摘要、分类与标签" />
-        <button class="fuwari-btn solid shrink-0" type="submit"><i class="fas fa-search"></i>搜索</button>
+        <input
+          class="fuwari-input"
+          name="kw"
+          [ngModel]="kw()"
+          (ngModelChange)="kw.set($event)"
+          placeholder="输入关键词，搜索标题、摘要、分类与标签"
+        />
+        <button class="fuwari-btn solid shrink-0" type="submit">
+          <i class="fas fa-search"></i>搜索
+        </button>
       </form>
       @if (kw().trim()) {
-        <p class="fuwari-muted mt-3 text-sm">找到 {{ results().length }} 篇相关文章</p>
+        <p class="fuwari-muted mt-3 text-sm">
+          找到 {{ results().length }} 篇相关文章
+        </p>
       }
     </div>
     @if (kw().trim()) {
-      <app-post-list [posts]="results()" [showCover]="blog.settings().showCover" />
+      @if (blog.settings().listMode === 'scroll') {
+        <app-scroll-post-list [posts]="results()" [query]="kw()" />
+      } @else {
+        <app-post-list
+          [posts]="results()"
+          [showCover]="blog.settings().showCover"
+          [query]="kw()"
+        />
+      }
     }
   `,
 })
@@ -33,7 +61,9 @@ export class SearchPage {
     const words = this.kw().trim().toLowerCase().split(/\s+/).filter(Boolean)
     if (!words.length) return []
     return this.blog.posts().filter((p) => {
-      const text = [p.title, p.summary, p.category, ...(p.tags || [])].join(' ').toLowerCase()
+      const text = [p.title, p.summary, p.category, ...(p.tags || [])]
+        .join(' ')
+        .toLowerCase()
       return words.every((w) => text.includes(w))
     })
   })

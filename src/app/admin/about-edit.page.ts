@@ -3,6 +3,7 @@ import { AdminStore } from './admin-store.service'
 import { MdEditorComponent } from './md-editor.component'
 import { ToastService } from '../services/toast.service'
 import { BlogService } from '../services/blog.service'
+import { LocalDemoService } from '../services/local-demo.service'
 
 @Component({
   selector: 'app-about-edit-page',
@@ -24,6 +25,7 @@ import { BlogService } from '../services/blog.service'
   `,
 })
 export class AboutEditPage {
+  private demo = inject(LocalDemoService)
   private store = inject(AdminStore)
   private toast = inject(ToastService)
   body = ''
@@ -41,7 +43,7 @@ export class AboutEditPage {
     this.saving.set(true)
     try {
       await this.store.saveAbout(this.body)
-      this.toast.success('保存成功')
+      this.toast.success(this.demo.active() ? '已保存到本地演示，查看博客即可预览' : '保存成功')
     } catch (e: any) {
       this.toast.error('保存失败：' + e.message)
     } finally {

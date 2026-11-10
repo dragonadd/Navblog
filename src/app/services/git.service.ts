@@ -3,6 +3,7 @@
 import { Injectable, inject, signal } from '@angular/core'
 import { Base64 } from 'js-base64'
 import { BlogService } from './blog.service'
+import { LocalDemoService } from './local-demo.service'
 
 export type Provider = 'github' | 'gitee' | 'gitlab'
 
@@ -21,6 +22,10 @@ export interface FileChange {
   content: string | null
   /** 已经是 base64（图片等二进制） */
   base64?: boolean
+  /** 只对需避免丢更新的单文件使用；null 表示读取时不存在。 */
+  expectedSha?: string | null
+  expectedLastCommit?: string
+  expectedContent?: string | null
 }
 
 const TOKEN_KEY = 'token'
@@ -31,11 +36,24 @@ export function parseRepo(url: string, defaultBranch = 'main'): RepoInfo {
   try {
     u = new URL(url)
   } catch {
-    return { provider: 'github', host: 'github.com', owner: '', repo: '', branch: defaultBranch, projectId: '' }
+    return {
+      provider: 'github',
+      host: 'github.com',
+      owner: '',
+      repo: '',
+      branch: defaultBranch,
+      projectId: '',
+    }
   }
   const host = u.hostname
-  const provider: Provider = host.includes('github') ? 'github' : host.includes('gitee') ? 'gitee' : 'gitlab'
-  const [owner = '', repo = ''] = u.pathname.replace(/^\/|\.git$|\/$/g, '').split('/')
+  const provider: Provider = host.includes('github')
+    ? 'github'
+    : host.includes('gitee')
+      ? 'gitee'
+      : 'gitlab'
+  const [owner = '', repo = ''] = u.pathname
+    .replace(/^\/|\.git$|\/$/g, '')
+    .split('/')
   return {
     provider,
     host,
@@ -49,7 +67,11 @@ export function parseRepo(url: string, defaultBranch = 'main'): RepoInfo {
 @Injectable({ providedIn: 'root' })
 export class GitService {
   private blog = inject(BlogService)
-  readonly repo = parseRepo(this.blog.config.gitRepoUrl, this.blog.config.branch || 'main')
+  private demo = inject(LocalDemoService)
+  readonly repo = parseRepo(
+    this.blog.config.gitRepoUrl,
+    this.blog.config.branch || 'main',
+  )
   readonly imageRepo = this.blog.config.imageRepoUrl
     ? parseRepo(this.blog.config.imageRepoUrl, 'image')
     : { ...this.repo, branch: 'image' }
@@ -58,12 +80,15 @@ export class GitService {
   readonly busy = signal(false)
 
   get providerName() {
-    return { github: 'GitHub', gitee: 'Gitee', gitlab: 'GitLab' }[this.repo.provider]
+    return { github: 'GitHub', gitee: 'Gitee', gitlab: 'GitLab' }[
+      this.repo.provider
+    ]
   }
 
   get tokenHelpUrl() {
     return {
-      github: 'https://github.com/settings/tokens/new?scopes=repo&description=blog-admin',
+      github:
+        'https://github.com/settings/tokens/new?scopes=repo&description=blog-admin',
       gitee: 'https://gitee.com/profile/personal_access_tokens',
       gitlab: `https://${this.repo.host}/-/user_settings/personal_access_tokens`,
     }[this.repo.provider]
@@ -86,9 +111,15 @@ export class GitService {
     r: RepoInfo = this.repo,
     token = this.token(),
   ): Promise<T> {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json;charset=utf-8' }
-    if (token) headers['Authorization'] = r.provider === 'gitlab' ? `Bearer ${token}` : `token ${token}`
-    if (r.provider === 'github') headers['Accept'] = 'application/vnd.github+json'
+    if (this.demo.active()) throw new Error('本地演示模式不会访问 Git 仓库')
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json;charset=utf-8',
+    }
+    if (token)
+      headers['Authorization'] =
+        r.provider === 'gitlab' ? `Bearer ${token}` : `token ${token}`
+    if (r.provider === 'github')
+      headers['Accept'] = 'application/vnd.github+json'
     const res = await fetch(this.apiBase(r) + path, {
       method,
       headers,
@@ -102,7 +133,9 @@ export class GitService {
     } catch {}
     if (!res.ok) {
       const msg = data?.message || data?.error || res.statusText
-      const err: any = new Error(`${res.status} ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`)
+      const err: any = new Error(
+        `${res.status} ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`,
+      )
       err.status = res.status
       throw err
     }
@@ -123,7 +156,15 @@ export class GitService {
     if (r.owner && name && name.toLowerCase() !== r.owner.toLowerCase()) {
       // 组织仓库：检查是否有写权限
       try {
-        await this.request('GET', r.provider === 'gitlab' ? `/projects/${this.projectPath(r)}` : `/repos/${r.owner}/${r.repo}`, undefined, r, token)
+        await this.request(
+          'GET',
+          r.provider === 'gitlab'
+            ? `/projects/${this.projectPath(r)}`
+            : `/repos/${r.owner}/${r.repo}`,
+          undefined,
+          r,
+          token,
+        )
       } catch {
         throw new Error(`Token 用户 ${name} 无权访问仓库 ${r.owner}/${r.repo}`)
       }
@@ -134,10 +175,14 @@ export class GitService {
   }
 
   async fetchUser() {
+    if (this.demo.active()) return
     if (!this.token() || this.user()) return
     try {
       const data = await this.request('GET', '/user')
-      this.user.set({ name: data.login || data.username, avatar: data.avatar_url })
+      this.user.set({
+        name: data.login || data.username,
+        avatar: data.avatar_url,
+      })
     } catch (e: any) {
       if (e.status === 401) this.logout()
     }
@@ -150,7 +195,27 @@ export class GitService {
   }
 
   /** 读取仓库文件，不存在返回 null */
-  async getFile(path: string, r: RepoInfo = this.repo): Promise<{ content: string; sha: string } | null> {
+  async getFile(
+    path: string,
+    r: RepoInfo = this.repo,
+  ): Promise<{ content: string; sha: string; lastCommit?: string } | null> {
+    if (this.demo.active()) {
+      let content = this.demo.read(path)
+      if (content === undefined) {
+        if (path === 'data/settings.json')
+          content = JSON.stringify(this.blog.settings())
+        else if (path === 'data/posts.json')
+          content = JSON.stringify(this.blog.allPosts())
+        else if (path === 'data/moments.json')
+          content = JSON.stringify(this.blog.getMoments())
+        else if (path === 'data/about.md')
+          content = await this.blog.getAboutSource()
+        else if (/^data\/posts\/[^/]+\.md$/.test(path))
+          content = await this.blog.getPostSource(path.slice(11, -3))
+        else throw new Error('本地演示中无法读取此文件')
+      }
+      return content === null ? null : { content, sha: 'local-demo' }
+    }
     try {
       if (r.provider === 'gitlab') {
         const d = await this.request(
@@ -159,7 +224,11 @@ export class GitService {
           undefined,
           r,
         )
-        return { content: Base64.decode(d.content), sha: d.blob_id }
+        return {
+          content: Base64.decode(d.content),
+          sha: d.blob_id,
+          ...(d.last_commit_id ? { lastCommit: d.last_commit_id } : {}),
+        }
       }
       const d = await this.request(
         'GET',
@@ -170,7 +239,12 @@ export class GitService {
       if (Array.isArray(d) || !d) return null
       // GitHub 对大于 1MB 的文件 content 为空，改用 blob 接口
       if (!d.content && d.sha && r.provider === 'github') {
-        const blob = await this.request('GET', `/repos/${r.owner}/${r.repo}/git/blobs/${d.sha}`, undefined, r)
+        const blob = await this.request(
+          'GET',
+          `/repos/${r.owner}/${r.repo}/git/blobs/${d.sha}`,
+          undefined,
+          r,
+        )
         return { content: Base64.decode(blob.content), sha: d.sha }
       }
       return { content: Base64.decode(d.content || ''), sha: d.sha }
@@ -181,11 +255,41 @@ export class GitService {
   }
 
   /** 一次提交多个文件（GitHub/GitLab 为单次提交，Gitee 逐个提交） */
-  async commit(changes: FileChange[], message: string, r: RepoInfo = this.repo) {
+  async commit(
+    changes: FileChange[],
+    message: string,
+    r: RepoInfo = this.repo,
+  ) {
+    if (this.demo.active()) {
+      this.demo.save(changes)
+      this.blog.refreshDemo()
+      return
+    }
     this.busy.set(true)
     try {
-      if (r.provider === 'github') await this.commitGitHub(changes, message, r)
-      else if (r.provider === 'gitlab') await this.commitGitLab(changes, message, r)
+      if (
+        r.provider === 'github' &&
+        changes.length === 1 &&
+        changes[0].expectedSha !== undefined
+      ) {
+        const c = changes[0]
+        if (c.content === null)
+          throw new Error('版本保护提交只支持文件内容更新')
+        await this.request(
+          'PUT',
+          `/repos/${r.owner}/${r.repo}/contents/${c.path.split('/').map(encodeURIComponent).join('/')}`,
+          {
+            message,
+            branch: r.branch,
+            content: c.base64 ? c.content : Base64.encode(c.content),
+            ...(c.expectedSha ? { sha: c.expectedSha } : {}),
+          },
+          r,
+        )
+      } else if (r.provider === 'github')
+        await this.commitGitHub(changes, message, r)
+      else if (r.provider === 'gitlab')
+        await this.commitGitLab(changes, message, r)
       else await this.commitGitee(changes, message, r)
       if (r === this.repo) this.triggerDeploy()
     } finally {
@@ -193,36 +297,79 @@ export class GitService {
     }
   }
 
-  private async commitGitHub(changes: FileChange[], message: string, r: RepoInfo) {
+  private async commitGitHub(
+    changes: FileChange[],
+    message: string,
+    r: RepoInfo,
+  ) {
     const base = `/repos/${r.owner}/${r.repo}`
-    const ref = await this.request('GET', `${base}/git/ref/heads/${encodeURIComponent(r.branch)}`, undefined, r)
+    const ref = await this.request(
+      'GET',
+      `${base}/git/ref/heads/${encodeURIComponent(r.branch)}`,
+      undefined,
+      r,
+    )
     const headSha = ref.object.sha
-    const head = await this.request('GET', `${base}/git/commits/${headSha}`, undefined, r)
+    const head = await this.request(
+      'GET',
+      `${base}/git/commits/${headSha}`,
+      undefined,
+      r,
+    )
     const tree: any[] = []
     for (const c of changes) {
       if (c.content === null) {
         tree.push({ path: c.path, mode: '100644', type: 'blob', sha: null })
       } else if (c.base64) {
-        const blob = await this.request('POST', `${base}/git/blobs`, { content: c.content, encoding: 'base64' }, r)
+        const blob = await this.request(
+          'POST',
+          `${base}/git/blobs`,
+          { content: c.content, encoding: 'base64' },
+          r,
+        )
         tree.push({ path: c.path, mode: '100644', type: 'blob', sha: blob.sha })
       } else {
-        tree.push({ path: c.path, mode: '100644', type: 'blob', content: c.content })
+        tree.push({
+          path: c.path,
+          mode: '100644',
+          type: 'blob',
+          content: c.content,
+        })
       }
     }
-    const newTree = await this.request('POST', `${base}/git/trees`, { base_tree: head.tree.sha, tree }, r)
+    const newTree = await this.request(
+      'POST',
+      `${base}/git/trees`,
+      { base_tree: head.tree.sha, tree },
+      r,
+    )
     const commit = await this.request(
       'POST',
       `${base}/git/commits`,
       { message, tree: newTree.sha, parents: [headSha] },
       r,
     )
-    await this.request('PATCH', `${base}/git/refs/heads/${encodeURIComponent(r.branch)}`, { sha: commit.sha }, r)
+    await this.request(
+      'PATCH',
+      `${base}/git/refs/heads/${encodeURIComponent(r.branch)}`,
+      { sha: commit.sha },
+      r,
+    )
   }
 
-  private async commitGitLab(changes: FileChange[], message: string, r: RepoInfo) {
+  private async commitGitLab(
+    changes: FileChange[],
+    message: string,
+    r: RepoInfo,
+  ) {
     const actions = []
     for (const c of changes) {
-      const exists = !!(await this.getFile(c.path, r))
+      const old = await this.getFile(c.path, r)
+      const exists = !!old
+      if (c.expectedSha !== undefined && (old?.sha ?? null) !== c.expectedSha)
+        throw new Error('文件已被修改，请刷新后重试')
+      if (c.expectedSha && !c.expectedLastCommit)
+        throw new Error('无法取得文件版本，请刷新后重试')
       if (c.content === null) {
         if (exists) actions.push({ action: 'delete', file_path: c.path })
         continue
@@ -232,6 +379,9 @@ export class GitService {
         file_path: c.path,
         content: c.base64 ? c.content : Base64.encode(c.content),
         encoding: 'base64',
+        ...(c.expectedSha && c.expectedLastCommit
+          ? { last_commit_id: c.expectedLastCommit }
+          : {}),
       })
     }
     if (!actions.length) return
@@ -243,13 +393,24 @@ export class GitService {
     )
   }
 
-  private async commitGitee(changes: FileChange[], message: string, r: RepoInfo) {
+  private async commitGitee(
+    changes: FileChange[],
+    message: string,
+    r: RepoInfo,
+  ) {
     for (const c of changes) {
       const path = `/repos/${r.owner}/${r.repo}/contents/${c.path.split('/').map(encodeURIComponent).join('/')}`
       const old = await this.getFile(c.path, r)
+      if (c.expectedSha !== undefined && (old?.sha ?? null) !== c.expectedSha)
+        throw new Error('文件已被修改，请刷新后重试')
       if (c.content === null) {
         if (old) {
-          const q = new URLSearchParams({ sha: old.sha, message, branch: r.branch, access_token: this.token() })
+          const q = new URLSearchParams({
+            sha: old.sha,
+            message,
+            branch: r.branch,
+            access_token: this.token(),
+          })
           await this.request('DELETE', `${path}?${q}`, undefined, r)
         }
         continue
@@ -270,16 +431,30 @@ export class GitService {
     if (r.provider !== 'github') return
     const base = `/repos/${r.owner}/${r.repo}`
     try {
-      await this.request('GET', `${base}/git/ref/heads/${encodeURIComponent(r.branch)}`, undefined, r)
+      await this.request(
+        'GET',
+        `${base}/git/ref/heads/${encodeURIComponent(r.branch)}`,
+        undefined,
+        r,
+      )
     } catch (e: any) {
       if (e.status !== 404) throw e
       const commit = await this.request(
         'POST',
         `${base}/git/commits`,
-        { message: 'rebot(CI): create image branch', tree: EMPTY_TREE, parents: [] },
+        {
+          message: 'rebot(CI): create image branch',
+          tree: EMPTY_TREE,
+          parents: [],
+        },
         r,
       )
-      await this.request('POST', `${base}/git/refs`, { ref: `refs/heads/${r.branch}`, sha: commit.sha }, r)
+      await this.request(
+        'POST',
+        `${base}/git/refs`,
+        { ref: `refs/heads/${r.branch}`, sha: commit.sha },
+        r,
+      )
     }
   }
 
@@ -292,8 +467,13 @@ export class GitService {
       fr.onerror = reject
       fr.readAsDataURL(file)
     })
+    if (this.demo.active()) return dataUrl
     const content = dataUrl.split(',')[1]
-    const ext = (file.name.split('.').pop() || file.type.split('/')[1] || 'png').toLowerCase()
+    const ext = (
+      file.name.split('.').pop() ||
+      file.type.split('/')[1] ||
+      'png'
+    ).toLowerCase()
     const path = `${Date.now()}.${ext}`
     this.busy.set(true)
     try {
@@ -304,7 +484,12 @@ export class GitService {
       } else {
         const body: any = { message: msg, branch: r.branch, content }
         if (r.provider === 'gitee') body.access_token = this.token()
-        await this.request(r.provider === 'github' ? 'PUT' : 'POST', `/repos/${r.owner}/${r.repo}/contents/${path}`, body, r)
+        await this.request(
+          r.provider === 'github' ? 'PUT' : 'POST',
+          `/repos/${r.owner}/${r.repo}/contents/${path}`,
+          body,
+          r,
+        )
       }
     } finally {
       this.busy.set(false)
@@ -313,14 +498,17 @@ export class GitService {
   }
 
   cdnUrl(path: string, r: RepoInfo = this.imageRepo) {
-    if (r.provider === 'gitee') return `https://gitee.com/${r.owner}/${r.repo}/raw/${r.branch}/${path}`
-    if (r.provider === 'gitlab') return `https://${r.host}/${r.owner}/${r.repo}/-/raw/${r.branch}/${path}?ref_type=heads`
+    if (r.provider === 'gitee')
+      return `https://gitee.com/${r.owner}/${r.repo}/raw/${r.branch}/${path}`
+    if (r.provider === 'gitlab')
+      return `https://${r.host}/${r.owner}/${r.repo}/-/raw/${r.branch}/${path}?ref_type=heads`
     const cdn = this.blog.settings().gitHubCDN || 'cdn.jsdelivr.net'
     return `https://${cdn}/gh/${r.owner}/${r.repo}@${r.branch}/${path}`
   }
 
   /** 请求部署钩子（Vercel / Netlify / Cloudflare Deploy Hook） */
   triggerDeploy() {
+    if (this.demo.active()) return
     const url = this.blog.settings().actionUrl
     if (!url) return
     fetch(url, { method: 'POST', mode: 'no-cors' }).catch(() => {

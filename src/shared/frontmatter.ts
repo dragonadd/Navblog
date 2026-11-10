@@ -1,6 +1,11 @@
 // Markdown front matter 解析 / 生成（浏览器端与构建脚本共用）
 import yaml from 'js-yaml'
 import type { PostMeta } from './types'
+import {
+  ENCRYPTED_SUMMARY,
+  isEncryptedBody,
+  parseEncryptedPayload,
+} from './post-crypto'
 
 const FM_RE = /^\uFEFF?---\r?\n([\s\S]*?)\r?\n---\r?\n?/
 
@@ -18,11 +23,11 @@ export function parseFrontMatter(source: string): ParsedMarkdown {
   try {
     // CORE_SCHEMA：不把日期解析为 Date 对象
     const loaded = yaml.load(match[1], { schema: yaml.CORE_SCHEMA })
-    if (loaded && typeof loaded === 'object') {
+    if (loaded && typeof loaded === 'object' && !Array.isArray(loaded)) {
       data = loaded as Record<string, unknown>
-    }
-  } catch (e) {
-    console.warn('front matter 解析失败', e)
+    } else if (loaded != null) throw new Error()
+  } catch {
+    throw new Error('文章元数据格式错误，已停止读取以避免发布未验证内容')
   }
   return { data, body: source.slice(match[0].length) }
 }
@@ -51,7 +56,9 @@ export function countWords(md: string): number {
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/[#>*_`~\-|]/g, ' ')
-  const cjk = text.match(/[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/g)?.length || 0
+  const cjk =
+    text.match(/[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/g)
+      ?.length || 0
   const words = text
     .replace(/[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/g, ' ')
     .split(/\s+/)
@@ -78,6 +85,21 @@ export function normalizeMeta(
   slug: string,
   body = '',
 ): PostMeta {
+  if (
+    Object.keys(data).some((key) =>
+      /^(password|passphrase|encryptionpassword)$/i.test(key),
+    )
+  )
+    throw new Error('禁止在文章元数据中保存密码，请通过后台加密后发布')
+  if (
+    data['encrypted'] !== undefined &&
+    ![true, false, 'true', 'false'].includes(data['encrypted'] as any)
+  )
+    throw new Error('文章 encrypted 标记无效')
+  const encrypted = data['encrypted'] === true || data['encrypted'] === 'true'
+  if (encrypted) parseEncryptedPayload(body)
+  else if (isEncryptedBody(body))
+    throw new Error('密文正文缺少 encrypted: true 标记')
   const meta: PostMeta = {
     slug,
     title: toStr(data['title']) || slug,
@@ -89,7 +111,8 @@ export function normalizeMeta(
   const category = toStr(data['category'] ?? data['categories'])
   if (category) meta.category = category
   const summary = toStr(data['summary'] ?? data['description'])
-  meta.summary = summary || autoSummary(body)
+  if (encrypted) meta.encrypted = true
+  meta.summary = summary || (encrypted ? ENCRYPTED_SUMMARY : autoSummary(body))
   const cover = toStr(data['cover'] ?? data['image'])
   if (cover) meta.cover = cover
   if (data['draft'] === true || data['draft'] === 'true') meta.draft = true
@@ -97,12 +120,22 @@ export function normalizeMeta(
   if (data['comments'] === false || data['comments'] === 'false') {
     meta.comments = false
   }
-  meta.words = countWords(body)
+  if (
+    data['hideSidebar'] === true ||
+    data['hideSidebar'] === 'true' ||
+    data['HIDE_SIDEBAR'] === true ||
+    data['fullWidth'] === true ||
+    data['sidebar'] === false
+  )
+    meta.hideSidebar = true
+  meta.words = encrypted ? 0 : countWords(body)
   return meta
 }
 
 /** 由元信息和正文生成完整的 Markdown 文件内容 */
 export function stringifyPost(meta: PostMeta, body: string): string {
+  if (meta.encrypted) parseEncryptedPayload(body)
+  else if (isEncryptedBody(body)) throw new Error('不能将密文作为普通文章保存')
   const data: Record<string, unknown> = {
     title: meta.title,
     date: meta.date,
@@ -115,6 +148,8 @@ export function stringifyPost(meta: PostMeta, body: string): string {
   if (meta.pinned) data['pinned'] = true
   if (meta.draft) data['draft'] = true
   if (meta.comments === false) data['comments'] = false
+  if (meta.hideSidebar) data['hideSidebar'] = true
+  if (meta.encrypted) data['encrypted'] = true
   const fm = yaml.dump(data, {
     schema: yaml.CORE_SCHEMA,
     lineWidth: -1,

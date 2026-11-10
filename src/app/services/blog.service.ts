@@ -1,7 +1,11 @@
-import { Injectable, computed, signal } from '@angular/core'
+import { Injectable, computed, inject, signal } from '@angular/core'
+import { normalizeThemeSettings } from '../../shared/theme-settings'
+import { LocalDemoService } from './local-demo.service'
 import configJson from '../../generated/config.json'
 import settingsJson from '../../generated/settings.json'
 import postsJson from '../../generated/posts.json'
+import momentsJson from '../../generated/moments.json'
+import { parseMoments } from '../../shared/moments'
 import type {
   BlogConfig,
   BlogSettings,
@@ -21,18 +25,46 @@ function taxonomy(list: string[]): TaxonomyItem[] {
 /** 博客公共数据（构建时打包进来的设置与文章索引） */
 @Injectable({ providedIn: 'root' })
 export class BlogService {
+  private demo = inject(LocalDemoService)
   readonly config = configJson as BlogConfig
-  readonly settings = signal<BlogSettings>(settingsJson as BlogSettings)
-  readonly allPosts = signal<PostMeta[]>(postsJson as PostMeta[])
+  readonly settings = signal<BlogSettings>(
+    normalizeThemeSettings({
+      ...(settingsJson as BlogSettings),
+      ...this.demo.readJson<Partial<BlogSettings>>('data/settings.json', {}),
+    }),
+  )
+  readonly allPosts = signal<PostMeta[]>(
+    this.demo.readJson('data/posts.json', postsJson as PostMeta[]),
+  )
   readonly posts = computed(() => this.allPosts().filter((p) => !p.draft))
   readonly categories = computed(() =>
-    taxonomy(this.posts().map((p) => p.category || '').filter(Boolean)),
+    taxonomy(
+      this.posts()
+        .map((p) => p.category || '')
+        .filter(Boolean),
+    ),
   )
-  readonly tags = computed(() => taxonomy(this.posts().flatMap((p) => p.tags || [])))
+  readonly tags = computed(() =>
+    taxonomy(this.posts().flatMap((p) => p.tags || [])),
+  )
   /** 当前文章页的目录 */
   readonly toc = signal<TocItem[]>([])
+  readonly commentsVisible = signal(false)
 
   private cache = new Map<string, string>()
+
+  refreshDemo() {
+    this.settings.set(
+      normalizeThemeSettings({
+        ...(settingsJson as BlogSettings),
+        ...this.demo.readJson<Partial<BlogSettings>>('data/settings.json', {}),
+      }),
+    )
+    this.allPosts.set(
+      this.demo.readJson('data/posts.json', postsJson as PostMeta[]),
+    )
+    this.cache.clear()
+  }
 
   /** 将相对路径解析为基于 <base href> 的绝对地址 */
   url(path: string): string {
@@ -57,11 +89,24 @@ export class BlogService {
   }
 
   getPostSource(slug: string): Promise<string> {
+    const local = this.demo.read(`data/posts/${slug}.md`)
+    if (local !== undefined)
+      return local === null
+        ? Promise.reject(new Error('文章已删除'))
+        : Promise.resolve(local)
     return this.fetchText(`content/posts/${encodeURIComponent(slug)}.md`)
   }
 
   getAboutSource(): Promise<string> {
+    const local = this.demo.read('data/about.md')
+    if (local !== undefined) return Promise.resolve(local || '')
     return this.fetchText('content/about.md')
+  }
+
+  getMoments() {
+    return parseMoments(
+      this.demo.read('data/moments.json') ?? JSON.stringify(momentsJson),
+    )
   }
 
   postsByCategory(name: string) {
@@ -74,7 +119,11 @@ export class BlogService {
 
   setTitle(title?: string) {
     const s = this.settings()
-    document.title = title ? `${title} - ${s.title}` : s.subtitle ? `${s.title} - ${s.subtitle}` : s.title
+    document.title = title
+      ? `${title} - ${s.title}`
+      : s.subtitle
+        ? `${s.title} - ${s.subtitle}`
+        : s.title
   }
 }
 
