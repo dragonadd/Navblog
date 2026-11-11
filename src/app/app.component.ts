@@ -1,12 +1,5 @@
 // Blog based on https://github.com/xjh22222228/nav (GPL-3.0)
-import {
-  Component,
-  DestroyRef,
-  computed,
-  effect,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core'
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router'
 import { filter } from 'rxjs'
 import { HeaderComponent } from './components/header.component'
@@ -107,7 +100,7 @@ import {
           </div>
         </main>
       }
-      <app-footer />
+      <app-footer [path]="url()" />
       @if (!isAdmin()) {
         <app-float-buttons />
       }
@@ -193,7 +186,6 @@ export class AppComponent {
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe((e) => this.url.set(e.urlAfterRedirects))
-    this.loadBusuanzi()
     // 文章中的代码复制按钮（事件委托）
     document.addEventListener('click', (ev) => {
       const btn = (ev.target as HTMLElement).closest?.(
@@ -207,13 +199,5 @@ export class AppComponent {
         setTimeout(() => (btn.innerHTML = '<i class="far fa-copy"></i>'), 1500)
       })
     })
-  }
-
-  private loadBusuanzi() {
-    if (!this.settings().busuanzi) return
-    const s = document.createElement('script')
-    s.async = true
-    s.src = 'https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js'
-    document.body.appendChild(s)
   }
 }

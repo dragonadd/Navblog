@@ -241,6 +241,10 @@ Markdown 链接和图片仅允许 HTTP(S) 或站内路径，拒绝执行协议�
 | `gitHubCDN` | GitHub 图片使用的 jsDelivr 域名，如 `cdn.jsdelivr.net`、`gcore.jsdelivr.net`、`fastly.jsdelivr.net` |
 | `actionUrl` | 部署钩子地址，后台保存后自动请求 |
 
+不蒜子统计使用官方 `https://busuanzi.ibruce.info/busuanzi` JSONP 接口，由 Angular 接收并显示计数。完整刷新和站内换页会重新请求，目录锚点跳转不重复计数；无需另外注入 `busuanzi.pure.mini.js`。请求带时间戳，避免返回缓存的计数。加载时显示提示，接口异常或超过 10 秒会显示“访问统计暂不可用”，不会填充虚假的零计数。
+
+“访问次数”（PV）表示页面浏览量；“访客数”（UV）由不蒜子去重，刷新同一页面不一定增加访客数。不同域名通常分别统计；localhost 的数据不能作为线上站点的访问量。统计依赖外部服务，浏览器广告拦截、网络限制或第三方服务故障可能影响显示。
+
 ## 文章 front matter
 
 见 [README → 文章格式](../README.md#文章格式)。
