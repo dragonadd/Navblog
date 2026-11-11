@@ -459,7 +459,7 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
             </div>
             <div>
               <label for="announcement-text" class="fuwari-label"
-                >公告文本</label
+                >公告文本（支持 Markdown）</label
               ><textarea
                 id="announcement-text"
                 class="fuwari-input"
@@ -480,8 +480,8 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
             </div>
           </div>
           <p class="fuwari-muted mt-3 text-xs leading-relaxed">
-            在博客侧栏显示，文本保留换行，不解析
-            HTML。访客关闭后当前公告不再显示；修改标题、文本或链接后会重新显示。关闭记录只影响当前浏览器，禁止关闭时公告始终显示。{{
+            在博客侧栏显示，支持 Markdown 粗体、斜体、链接和列表等格式，保留换行；原始
+            HTML 按文字显示。访客关闭后当前公告不再显示；修改标题、文本或链接后会重新显示。关闭记录只影响当前浏览器，禁止关闭时公告始终显示。{{
               demo.active()
                 ? '本地演示保存后可直接预览。'
                 : '保存并重新部署后生效。'

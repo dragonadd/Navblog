@@ -164,7 +164,7 @@ export interface BlogSettings {
   hitokotoCustomText?: string
   hitokotoShowFrom?: boolean
   hitokotoMaxLength?: number
-  /** 主页公告；缺省不启用。文本为纯文本，保留换行。 */
+  /** 主页公告；缺省不启用。正文支持 Markdown，保留换行。 */
   announcementEnable?: boolean
   announcementTitle?: string
   announcementText?: string

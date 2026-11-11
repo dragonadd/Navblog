@@ -1,3 +1,4 @@
+import { Marked } from 'marked'
 import type { BlogSettings } from './types'
 
 export interface Announcement {
@@ -23,6 +24,44 @@ export function normalizeAnnouncementLink(value = ''): string {
     throw new Error('公告链接只允许 HTTP(S) 或站内路径，且不能包含登录凭据')
   }
   return /^[a-z][a-z\d+.-]*:/i.test(link) ? url.href : link
+}
+
+/** 公告使用独立的轻量解析器，保留换行，不生成文章目录或代码操作按钮。 */
+export function renderAnnouncementMarkdown(text: string, baseUrl: string): string {
+  const base = new URL(baseUrl)
+  const escape = (value: string) => value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+  const resolve = (href: string) => {
+    try {
+      const link = normalizeAnnouncementLink(href)
+      return link ? new URL(link.replace(/^\//, ''), base) : null
+    } catch { return null }
+  }
+  const marked = new Marked({
+    gfm: true,
+    breaks: true,
+    renderer: {
+      html({ text }) { return escape(text) },
+      link({ href, title, tokens }) {
+        const text = this.parser.parseInline(tokens)
+        const url = resolve(href)
+        if (!url) return text
+        const titleAttr = title ? ` title="${escape(title)}"` : ''
+        const external = url.origin !== base.origin
+        return `<a href="${escape(url.href)}"${titleAttr}${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${text}</a>`
+      },
+      image({ href, title, text }) {
+        const url = resolve(href)
+        if (!url) return escape(text)
+        const titleAttr = title ? ` title="${escape(title)}"` : ''
+        return `<img src="${escape(url.href)}" alt="${escape(text)}"${titleAttr} loading="lazy" />`
+      },
+    },
+  })
+  return marked.parse(text, { async: false }) as string
 }
 
 export function readAnnouncement(settings: BlogSettings): Announcement {

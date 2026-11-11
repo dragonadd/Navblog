@@ -132,7 +132,9 @@ test('未修改的文章和关于页只读取本地静态资源', async (t) => {
 test('碎碎念演示增改删和导出只写浏览器，退出恢复正式动态', async (t) => {
   const fetch = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Unexpected network') })
   const { demo, blog, store } = services()
+  const originalMoments = blog.getMoments()
   demo.enter()
+  demo.save([{ path: 'data/moments.json', content: '[]' }])
   assert.deepEqual(await store.loadMoments(), [])
   const item = { id: 'demo-moment', date: '2026-11-10T00:00:00Z', text: '第一行\n第二行' }
   await store.saveMoment(item, false)
@@ -145,7 +147,7 @@ test('碎碎念演示增改删和导出只写浏览器，退出恢复正式动�
   assert.equal(fetch.mock.callCount(), 0)
   assert.equal(local.has('token'), false)
   demo.exit()
-  assert.deepEqual(blog.getMoments(), [])
+  assert.deepEqual(blog.getMoments(), originalMoments)
 })
 
 test('本地演示版本保护拒绝另一个窗口已更新的动态文件', () => {

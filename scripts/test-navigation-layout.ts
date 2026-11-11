@@ -130,7 +130,7 @@ test('旧侧栏方向迁移为各模块位置，显式覆盖生效且不修改�
     tags: 'left',
     toc: 'left',
   }
-  assert.deepEqual(normalize({ sidebarReverse: false }).sidebarPositions, left)
+  assert.deepEqual(normalize({ sidebarReverse: false, sidebarPositions: undefined }).sidebarPositions, left)
   const original = { sidebarReverse: true, sidebarPositions: { stats: 'left' } }
   assert.deepEqual(normalize(original).sidebarPositions, {
     profile: 'right',

@@ -4,6 +4,7 @@ import { AnnouncementStateService } from '../services/announcement-state.service
 import {
   announcementVersion,
   readAnnouncement,
+  renderAnnouncementMarkdown,
 } from '../../shared/announcement'
 
 @Component({
@@ -13,9 +14,7 @@ import {
       <section class="fuwari-card relative p-4" aria-label="站点公告">
         <div class="min-w-0" [class.pr-7]="announcement().closable">
           @if (announcement().text) {
-            <p class="text-sm leading-relaxed whitespace-pre-line break-words">
-              {{ announcement().text }}
-            </p>
+            <div class="prose-announcement" [innerHTML]="html()"></div>
           }
           @if (announcement().link) {
             <a
@@ -49,6 +48,9 @@ export class AnnouncementComponent {
   private readonly blog = inject(BlogService)
   private readonly state = inject(AnnouncementStateService)
   readonly announcement = computed(() => readAnnouncement(this.blog.settings()))
+  readonly html = computed(() =>
+    renderAnnouncementMarkdown(this.announcement().text, this.blog.url('/')),
+  )
   readonly version = computed(() => announcementVersion(this.announcement()))
   readonly visible = computed(() => {
     const a = this.announcement()

@@ -608,6 +608,53 @@ a {
     font-weight: 600;
   }
 
+  /* ---------- 公告便签正文 ---------- */
+  .prose-announcement {
+    font-size: 0.875rem;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+  }
+  .prose-announcement :where(p, ul, ol, blockquote, pre, table) {
+    margin-bottom: 0.625rem;
+  }
+  .prose-announcement :where(h1, h2, h3, h4, h5, h6) {
+    margin: 0.75rem 0 0.5rem;
+    font-size: 1em;
+    font-weight: 700;
+  }
+  .prose-announcement > :first-child { margin-top: 0; }
+  .prose-announcement :last-child { margin-bottom: 0; }
+  .prose-announcement ul { list-style: disc; padding-left: 1.25rem; }
+  .prose-announcement ol { list-style: decimal; padding-left: 1.25rem; }
+  .prose-announcement li + li { margin-top: 0.25rem; }
+  .prose-announcement a {
+    color: var(--fuwari-primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .prose-announcement blockquote {
+    border-left: 3px solid var(--fuwari-primary-soft);
+    padding-left: 0.75rem;
+    color: var(--fuwari-muted);
+  }
+  .prose-announcement code {
+    border-radius: 4px;
+    background: var(--fuwari-code-bg);
+    padding: 0.1em 0.3em;
+    font-size: 0.85em;
+  }
+  .prose-announcement pre {
+    overflow-x: auto;
+    border-radius: 8px;
+    background: var(--fuwari-code-bg);
+    padding: 0.75rem;
+  }
+  .prose-announcement pre code { padding: 0; }
+  .prose-announcement img { max-width: 100%; height: auto; border-radius: 8px; }
+  .prose-announcement table { display: block; max-width: 100%; overflow-x: auto; }
+  .prose-announcement :where(th, td) { border: 1px solid var(--fuwari-border); padding: 0.3rem 0.5rem; }
+  .prose-announcement hr { margin: 0.75rem 0; border-color: var(--fuwari-border); }
+
   /* ---------- 文章正文 ---------- */
   .prose-blog {
     font-size: 1rem;
