@@ -4,7 +4,7 @@ import { AdminStore } from './admin-store.service'
 import { ToastService } from '../services/toast.service'
 import { BlogService } from '../services/blog.service'
 import { GitService } from '../services/git.service'
-import type { BlogSettings } from '../../shared/types'
+import type { BlogSettings, MenuLink } from '../../shared/types'
 import {
   DAILY_TEXT_SOURCES,
   parseDailySources,
@@ -13,7 +13,11 @@ import {
 } from '../../shared/daily-text'
 import { LocalDemoService } from '../services/local-demo.service'
 import { normalizeAnnouncementLink } from '../../shared/announcement'
-import { normalizeThemeSettings } from '../../shared/theme-settings'
+import {
+  normalizeThemeSettings,
+  SIDEBAR_MODULES,
+} from '../../shared/theme-settings'
+import type { SidebarModule, SidebarSide } from '../../shared/types'
 import { LoginPasswordComponent } from '../components/login-password.component'
 import { normalizeCustomResources } from '../../shared/custom-resources'
 
@@ -123,12 +127,6 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
                 <option value="auto">按时段切换</option>
               </select></label
             >
-            <label class="flex items-center gap-2 text-sm"
-              ><input
-                type="checkbox"
-                [(ngModel)]="s.sidebarReverse"
-              />桌面侧栏置于右侧</label
-            >
             @if (s.appearance === 'auto') {
               <label class="fuwari-label"
                 >深色开始小时（0–23）<input
@@ -152,6 +150,32 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
             <p class="fuwari-muted text-xs md:col-span-2">
               访客手动选择优先。顶栏“恢复站点默认外观”可恢复系统或定时切换；开始和结束相同表示全天浅色。
             </p>
+            <section
+              class="rounded-2xl border border-[var(--fuwari-border)] p-4 md:col-span-2"
+              aria-labelledby="sidebar-position-title"
+            >
+              <h3 class="fuwari-section-title mb-2" id="sidebar-position-title">
+                桌面侧栏模块位置
+              </h3>
+              <p class="fuwari-muted mb-3 text-xs">
+                每个模块可分别放在左侧或右侧，显示开关沿用下方主题设置。手机按原顺序显示一列；全宽文章隐藏全部侧栏。
+              </p>
+              <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                @for (module of sidebarModules; track module.key) {
+                  <label class="fuwari-label"
+                    >{{ module.label }}位置
+                    <select
+                      class="fuwari-input mt-1"
+                      [ngModel]="s.sidebarPositions?.[module.key]"
+                      (ngModelChange)="setSidebarPosition(module.key, $event)"
+                    >
+                      <option value="left">左侧</option>
+                      <option value="right">右侧</option>
+                    </select>
+                  </label>
+                }
+              </div>
+            </section>
             <div class="md:col-span-2 flex flex-wrap gap-5 text-sm">
               <label class="flex items-center gap-2"
                 ><input
@@ -516,42 +540,178 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
         </div>
 
         <div class="fuwari-card p-5">
+          <h2 class="fuwari-section-title mb-3">顶部菜单显示</h2>
+          <div class="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            @for (toggle of menuToggles; track toggle.key) {
+              <label class="flex items-center gap-2 text-sm"
+                ><input type="checkbox" [(ngModel)]="s[toggle.key]" />{{
+                  toggle.label
+                }}</label
+              >
+            }
+          </div>
           <div class="mb-4 flex items-center">
             <div class="fuwari-section-title">额外顶部菜单</div>
             <button
               class="fuwari-btn ml-auto !py-1 !text-xs"
-              (click)="s.menus.push({ name: '', url: '', blank: true })"
+              (click)="
+                s.menus.push({
+                  name: '',
+                  url: '',
+                  blank: true,
+                  visible: true,
+                  children: [],
+                })
+              "
+              aria-label="添加一级菜单"
             >
               <i class="fas fa-plus"></i>添加
             </button>
           </div>
-          @for (item of s.menus; track $index) {
+          <p class="fuwari-muted mb-3 text-xs">
+            父菜单可填写链接，也可留空作为二级菜单分组。支持两级导航；隐藏项仍保留在设置中。显隐只控制导航入口，不限制页面访问。
+          </p>
+          @for (item of s.menus; track $index; let parentIndex = $index) {
             <div
-              class="mb-2 grid grid-cols-[1fr_2fr_auto_auto] items-center gap-2"
+              class="mb-3 rounded-xl border border-[var(--fuwari-border)] p-3"
             >
-              <input
-                class="fuwari-input"
-                [(ngModel)]="item.name"
-                placeholder="名称"
-              />
-              <input
-                class="fuwari-input"
-                [(ngModel)]="item.url"
-                placeholder="链接"
-              />
-              <label class="flex items-center gap-1 text-xs whitespace-nowrap"
-                ><input type="checkbox" [(ngModel)]="item.blank" />新窗口</label
-              >
-              <button
-                class="fuwari-tool-btn hover:!text-red-500"
-                (click)="s.menus.splice($index, 1)"
-              >
-                <i class="far fa-trash-alt"></i>
-              </button>
+              <div class="mb-3 flex flex-wrap items-center gap-3">
+                <span class="mr-auto text-sm font-semibold"
+                  >菜单 {{ parentIndex + 1 }}</span
+                >
+                <label class="flex items-center gap-1 text-xs"
+                  ><input
+                    type="checkbox"
+                    [(ngModel)]="item.visible"
+                    [attr.aria-label]="'父菜单 ' + (parentIndex + 1) + ' 显示'"
+                  />显示</label
+                >
+                <label class="flex items-center gap-1 text-xs"
+                  ><input
+                    type="checkbox"
+                    [(ngModel)]="item.blank"
+                    [attr.aria-label]="
+                      '父菜单 ' + (parentIndex + 1) + ' 新窗口'
+                    "
+                  />新窗口</label
+                >
+                <button
+                  class="fuwari-tool-btn hover:!text-red-500"
+                  (click)="s.menus.splice(parentIndex, 1)"
+                  [attr.aria-label]="'删除一级菜单 ' + (parentIndex + 1)"
+                >
+                  <i class="far fa-trash-alt" aria-hidden="true"></i>
+                </button>
+              </div>
+              <div class="grid gap-3 md:grid-cols-2">
+                <label class="fuwari-label"
+                  >名称<input
+                    class="fuwari-input mt-1"
+                    [(ngModel)]="item.name"
+                    placeholder="菜单名称"
+                    [attr.aria-label]="'父菜单 ' + (parentIndex + 1) + ' 名称'"
+                /></label>
+                <label class="fuwari-label"
+                  >链接（分组可留空）<input
+                    class="fuwari-input mt-1"
+                    [(ngModel)]="item.url"
+                    placeholder="https://… 或站内 / 路径"
+                    [attr.aria-label]="'父菜单 ' + (parentIndex + 1) + ' 链接'"
+                /></label>
+              </div>
+              <div class="mt-3 border-l border-[var(--fuwari-border)] pl-3">
+                @for (
+                  child of item.children || [];
+                  track $index;
+                  let childIndex = $index
+                ) {
+                  <div
+                    class="mb-3 rounded-lg bg-[var(--fuwari-primary-soft)] p-3"
+                  >
+                    <div class="mb-2 flex flex-wrap items-center gap-3">
+                      <span class="mr-auto text-xs font-semibold"
+                        >二级菜单 {{ childIndex + 1 }}</span
+                      >
+                      <label class="flex items-center gap-1 text-xs"
+                        ><input
+                          type="checkbox"
+                          [(ngModel)]="child.visible"
+                          [attr.aria-label]="
+                            '子菜单 ' +
+                            (parentIndex + 1) +
+                            '-' +
+                            (childIndex + 1) +
+                            ' 显示'
+                          "
+                        />显示</label
+                      >
+                      <label class="flex items-center gap-1 text-xs"
+                        ><input
+                          type="checkbox"
+                          [(ngModel)]="child.blank"
+                          [attr.aria-label]="
+                            '子菜单 ' +
+                            (parentIndex + 1) +
+                            '-' +
+                            (childIndex + 1) +
+                            ' 新窗口'
+                          "
+                        />新窗口</label
+                      >
+                      <button
+                        class="fuwari-tool-btn hover:!text-red-500"
+                        (click)="item.children?.splice(childIndex, 1)"
+                        [attr.aria-label]="
+                          '删除二级菜单 ' +
+                          (parentIndex + 1) +
+                          '-' +
+                          (childIndex + 1)
+                        "
+                      >
+                        <i class="far fa-trash-alt" aria-hidden="true"></i>
+                      </button>
+                    </div>
+                    <div class="grid gap-2 md:grid-cols-2">
+                      <label class="fuwari-label"
+                        >名称<input
+                          class="fuwari-input mt-1"
+                          [(ngModel)]="child.name"
+                          [attr.aria-label]="
+                            '子菜单 ' +
+                            (parentIndex + 1) +
+                            '-' +
+                            (childIndex + 1) +
+                            ' 名称'
+                          "
+                      /></label>
+                      <label class="fuwari-label"
+                        >链接<input
+                          class="fuwari-input mt-1"
+                          [(ngModel)]="child.url"
+                          placeholder="https://… 或站内 / 路径"
+                          [attr.aria-label]="
+                            '子菜单 ' +
+                            (parentIndex + 1) +
+                            '-' +
+                            (childIndex + 1) +
+                            ' 链接'
+                          "
+                      /></label>
+                    </div>
+                  </div>
+                }
+                <button
+                  class="fuwari-btn !py-1 !text-xs"
+                  (click)="addSubmenu(item)"
+                  [attr.aria-label]="'添加二级菜单 ' + (parentIndex + 1)"
+                >
+                  <i class="fas fa-plus" aria-hidden="true"></i>添加二级菜单
+                </button>
+              </div>
             </div>
           } @empty {
             <p class="fuwari-muted text-sm">
-              暂无，内置菜单：首页 / 归档 / 分类 / 标签 / 关于
+              暂无额外菜单，可在上方选择内置菜单的显示状态。
             </p>
           }
         </div>
@@ -749,6 +909,7 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
   `,
 })
 export class SettingsPage {
+  readonly sidebarModules = SIDEBAR_MODULES
   readonly dailySources = DAILY_TEXT_SOURCES
   readonly demo = inject(LocalDemoService)
   private store = inject(AdminStore)
@@ -761,6 +922,18 @@ export class SettingsPage {
   externalJsText = ''
   readonly saving = signal(false)
   private target: 'avatar' | 'favicon' | 'heroImage' = 'avatar'
+
+  setSidebarPosition(key: SidebarModule, side: SidebarSide) {
+    if (this.s) (this.s.sidebarPositions ||= {})[key] = side
+  }
+  addSubmenu(item: MenuLink) {
+    ;(item.children ||= []).push({
+      name: '',
+      url: '',
+      blank: true,
+      visible: true,
+    })
+  }
 
   constructor() {
     inject(BlogService).setTitle('站点设置')
@@ -828,12 +1001,16 @@ export class SettingsPage {
     { key: 'articleCopyright', label: '版权声明' },
     { key: 'articleAdjacent', label: '上下篇文章' },
     { key: 'articleComment', label: '文章评论' },
-    { key: 'mobileMenu', label: '移动菜单' },
+  ] as const
+  readonly menuToggles = [
     { key: 'menuHome', label: '首页菜单' },
     { key: 'menuArchive', label: '归档菜单' },
     { key: 'menuCategories', label: '分类菜单' },
     { key: 'menuTags', label: '标签菜单' },
+    { key: 'menuMoments', label: '碎碎念菜单' },
+    { key: 'menuAbout', label: '关于菜单' },
     { key: 'menuSearch', label: '搜索按钮' },
+    { key: 'mobileMenu', label: '手机菜单按钮' },
   ] as const
   readonly themeTexts = [
     { key: 'profilePath', label: '个人页路径' },
@@ -930,7 +1107,6 @@ export class SettingsPage {
         .filter(Boolean)
       Object.assign(s, normalizeCustomResources(s, this.blog.config.baseHref))
       s.social = s.social.filter((x) => x.url)
-      s.menus = s.menus.filter((x) => x.url && x.name)
       await this.store.saveSettings(s)
       this.s = s
       this.externalCssText = s.customExternalCss.join('\n')

@@ -89,9 +89,7 @@ a {
   }
 
   .fuwari-navbar {
-    background: color-mix(in oklab, var(--fuwari-surface) 86%, transparent);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: color-mix(in oklab, var(--fuwari-surface) 80%, transparent);
     border: 1px solid var(--fuwari-border);
     border-top: none;
     border-radius: 0 0 16px 16px;
@@ -982,6 +980,16 @@ app-sidebar .group:hover img {
   }
   .fuwari-with-sidebar.fuwari-sidebar-reverse {
     grid-template-columns: minmax(0, 1fr) 280px;
+  }
+  .fuwari-with-sidebar.fuwari-both-sidebars {
+    grid-template-columns: clamp(200px, 18vw, 240px) minmax(0, 1fr) clamp(
+        200px,
+        18vw,
+        240px
+      );
+  }
+  .fuwari-wide {
+    max-width: 90rem;
   }
   .fuwari-sidebar-reverse > .fuwari-sidebar-column {
     order: 2;

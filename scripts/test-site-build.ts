@@ -76,6 +76,8 @@ try {
       rssEnable: false,
       pwaEnable: false,
       appearance: 'dark',
+      menuAbout: false,
+      menuMoments: false,
     }),
   )
   await build()
@@ -85,6 +87,13 @@ try {
   assert.ok(!offHtml.includes('rel="manifest"'))
   assert.ok(!offHtml.includes('application/rss+xml'))
   assert.equal(bootstrap(offHtml), true)
+  const offNav = offHtml.match(/<nav>([\s\S]*?)<\/nav>/)?.[1] || ''
+  assert.ok(offNav)
+  assert.ok(!offNav.includes('about/'), '隐藏关于菜单时静态导航仍显示关于')
+  assert.ok(
+    !offNav.includes('moments/'),
+    '隐藏碎碎念菜单时静态导航仍显示碎碎念',
+  )
   fs.writeFileSync(
     PATHS.settings,
     JSON.stringify({
@@ -96,6 +105,8 @@ try {
       pwaShortName: '验收',
       pwaIcon: 'icons/icon-192x192.png',
       pwaThemeColor: '#112233',
+      menuAbout: true,
+      menuMoments: true,
     }),
   )
   await build('/blog/')
@@ -110,6 +121,16 @@ try {
   assert.ok(html.includes('<base href="/blog/"'))
   assert.ok(html.includes('application/rss+xml'))
   assert.ok(html.includes('apple-touch-icon'))
+  const onNav = html.match(/<nav>([\s\S]*?)<\/nav>/)?.[1] || ''
+  const base = new URL(
+    html.match(/<base href="([^"]+)"/)![1],
+    'https://example.test/',
+  )
+  const navPaths = [...onNav.matchAll(/href="([^"]+)"/g)].map(
+    (match) => new URL(match[1], base).pathname,
+  )
+  assert.ok(navPaths.includes('/blog/about/'))
+  assert.ok(navPaths.includes('/blog/moments/'))
   const rss = fs.readFileSync(path.join(PATHS.dist, 'rss.xml'), 'utf8')
   assert.ok(rss.includes('博客搭好啦'))
   assert.ok(!rss.includes('def fib'))

@@ -42,12 +42,13 @@ Angular 21 + TypeScript + Tailwind CSS 4。功能与验收修复说明更新于 
 
 - 首页文章列表（置顶、封面容错、分页或自动加载）、文章页、年月归档、分类、标签、关于页、404
 - 站内搜索覆盖标题、公开摘要、分类和标签，支持关键词高亮
+- 吸顶毛玻璃导航：内置菜单和额外菜单可分别显隐，额外菜单支持二级展开
 - **文章密码加密**：浏览器原生 Web Crypto，保存前加密正文，访客输入密码阅读
 - **碎碎念 `/moments`**：头像、时间和短文本时间线，保留换行
 - Markdown：代码高亮 + 一键复制、目录（TOC，随滚动高亮）、表格、任务列表、图片懒加载
 - Giscus 评论（随深色模式自动切换主题）
 - 主题色相调色盘（HEX 复制、固定色相）、深浅色（系统／固定／定时切换），访客可恢复站点默认外观
-- 侧栏便签公告（可关闭）、最新文章、联系翻转卡片；桌面侧栏可反转，文章可全宽阅读
+- 侧栏便签公告（可关闭）、最新文章、联系翻转卡片；每个桌面侧栏模块可选择左侧或右侧，支持双侧布局，手机保持单列；文章可全宽阅读
 - 每日文字：多个接口来源独立按天缓存；自定义 `{date} {time} {weekday} {month} {day}` 变量，时间自动更新
 - 自定义 CSS、外部 CSS／JS、ICP备案与公安备案、RSS 开关及全文／摘要模式、PWA 安装参数
 - 响应式布局，手机端友好
@@ -59,6 +60,7 @@ Angular 21 + TypeScript + Tailwind CSS 4。功能与验收修复说明更新于 
 - 新建 / 编辑 / 删除文章：Markdown 编辑器（工具栏、分屏实时预览、`Ctrl+B/I/K/S` 快捷键）
 - 图片上传：粘贴、拖拽或按钮上传，自动存到图片分支并返回 CDN 地址
 - 站点设置：标题、头像、横幅、社交链接、菜单、分页、版权协议、Giscus、页脚 HTML……
+- 桌面侧栏逐模块定位；六个内置菜单、父菜单和子菜单分别控制显隐，支持编辑二级菜单及新窗口选项
 - 编辑「关于」页
 - 加密文章解锁编辑、修改密码和重新加密
 - 登录密码独立设置／修改／移除，浏览器加密 Token 后自动提交 `data/auth.json`
@@ -196,15 +198,34 @@ Cloudflare 的回退限定在 `/admin` 和具体后台页面；首页与后台 H
 
 > 🔒 Token 只存当前标签页的 sessionStorage，作为请求凭据发送给配置的 Git API。升级后旧 localStorage Token 会清除，需要重新登录。刷新可保留登录，退出会清除；浏览器会话恢复可能保留数据。自定义脚本仅使用可信来源。
 
-### 3. 登录密码管理
+### 3. 自定义登录密码管理
 
-在 **站点设置 → 登录密码管理** 输入并确认密码。密码至少 8 位且包含字母和数字；**为了安全性，建议使用 12 位以上的独有密码**。浏览器使用 PBKDF2-SHA-256 和 AES-GCM 加密当前 Token，再单独提交密文文件 `data/auth.json`。部署成功后显示密码登录 Tab；忘记密码或 Token 过期时可用新 Token 登录并重设。
+Access Token 通常很长，不方便记忆，也容易忘记保存在什么地方。首次使用 Token 登录后，可以设置一个自定义登录密码，之后输入密码即可快捷登录；Token 登录入口仍然保留。
+
+在 **站点设置 → 登录密码管理** 输入并确认密码。密码至少 8 位且包含字母和数字；**为了安全性，建议使用 12 位以上的独有随机密码，或由密码管理器生成的长口令**。浏览器使用 PBKDF2-SHA-256 派生密钥，再用 AES-GCM 加密当前 Token，单独提交密文文件 `data/auth.json`。加密的是 Token，登录密码不直接保存到仓库。部署成功后显示密码登录 Tab；忘记密码或 Token 过期时，可使用有效的新 Token 登录并重新设置密码。
 
 凭证按仓库和分支绑定，保存位置以页面显示的提交分支为准。默认 `branch: auto` 跟随部署分支：Cloudflare 用 `test` 部署时，后台也写入 `test`。保存后需等待该分支部署完成；此前误写到 main 时，请将新版更新到 test，使用 Token 登录 test 站点并重新设置密码，旧 main 凭证不会自动迁移。
 
-“移除密码”会删除当前文件并恢复 Token 登录，但 Git 历史和旧部署中的密文仍可能存在，需要撤销旧访问时请在 Git 平台轮换 Token。公开密文可被离线猜解，弱密码不适合保护写权限凭证。本地演示不管理真实登录凭证。详见 [后台认证说明](./docs/authentication.md)。
+“移除密码”会删除当前文件并恢复 Token 登录，但 Git 历史、旧部署和他人已经下载的密文仍可能存在。需要撤销旧访问时，请在 Git 平台撤销或轮换 Token；删除文件不能代替撤销凭证。本地演示不管理真实登录凭证。
 
-详细说明见 [docs/admin.md](./docs/admin.md)。
+> **重要安全提醒：公开密文可以被下载并离线反复猜解密码。** 弱密码不适合保护具有仓库写权限的 Token，即使满足 8 位最低要求，也不代表足够安全。请优先使用 **12 位以上的独有随机密码或更长口令**，并把 Token 权限限制到所需仓库和必要操作。
+
+NavBlog 是纯静态项目，也可以从私有仓库构建部署。私有仓库能减少源码、文章历史和仓库内文件的直接公开，但免费部署条件需要区分个人仓库与组织仓库：
+
+| 平台 | 私有仓库与免费计划 |
+| --- | --- |
+| Cloudflare Pages | 支持私有仓库的 Git 集成，免费计划有构建和使用额度限制。 |
+| Netlify | 可连接个人账号的私有仓库；组织私有仓库按 Git 平台及 Core Pro / Enterprise 计划条件提供支持。 |
+| Vercel | 个人私有仓库可使用 Hobby 计划；GitHub 组织、GitLab 群组或 Bitbucket 工作区中的私有仓库不能部署到 Hobby，需要符合 Pro 等计划条件。 |
+| GitHub Pages | GitHub Free 支持公开仓库；私有仓库需要 GitHub Pro、Team 或 Enterprise 等支持该能力的计划。 |
+
+授权托管平台时，记得允许对应的 Git 集成访问你的私有仓库，否则平台无法读取源码进行构建。计划政策可能调整，请以官方说明为准：[Cloudflare Git 集成](https://developers.cloudflare.com/pages/configuration/git-integration/)、[Netlify 仓库支持](https://docs.netlify.com/build/git-workflows/overview/)、[Vercel 私有仓库部署](https://vercel.com/docs/git#deploying-private-git-repositories)、[GitHub Pages 可用计划](https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages)。
+
+使用私有博客仓库时，默认的 GitHub 图片 CDN 无法读取其中的 `images` 分支。可将 `imageRepoUrl` 指向独立的公开图片仓库，或把图片作为站点资源随构建发布；使用 Giscus 时也需要一个公开的 Discussions 仓库。操作见 [图片存储](./docs/admin.md#图片存储) 和 [Giscus 配置](./docs/config.md#giscus-评论)。
+
+**私有仓库不等于私有网站。** 当前实现会把有效的 `data/auth.json` 随构建发布为网站资源；访客可以直接访问它，或在开发者工具的网络面板看到它被下载。文件不含明文 Token，但密文仍然公开。因此，真正保护写权限凭证的是强密码、加密和 Token 权限控制，仓库可见性只是额外一层保护。
+
+详细原理见 [后台认证说明](./docs/authentication.md)，后台操作见 [docs/admin.md](./docs/admin.md)。
 
 ## ⚙️ 配置说明
 

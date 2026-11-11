@@ -15,14 +15,25 @@ import { PostPage } from '../src/app/pages/post.page'
 import { BlogService } from '../src/app/services/blog.service'
 import { ThemeService } from '../src/app/services/theme.service'
 import { ToastService } from '../src/app/services/toast.service'
+import { AnnouncementStateService } from '../src/app/services/announcement-state.service'
 
 const originals = new Map(
-  ['document', 'location'].map((k) => [
+  ['document', 'location', 'window'].map((k) => [
     k,
     Object.getOwnPropertyDescriptor(globalThis, k),
   ]),
 )
 function globals(pathname: string) {
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      matchMedia: () => ({
+        matches: true,
+        addEventListener() {},
+        removeEventListener() {},
+      }),
+    },
+  })
   Object.defineProperty(globalThis, 'location', {
     configurable: true,
     value: { pathname, hash: '' },
@@ -56,6 +67,10 @@ test('admin只匹配后台首段，部署子路径不影响首页或文章布局
       [
         { provide: Router, useValue: { events } },
         { provide: ThemeService, useValue: {} },
+        {
+          provide: AnnouncementStateService,
+          useValue: { dismissed: signal('') },
+        },
         {
           provide: BlogService,
           useValue: {

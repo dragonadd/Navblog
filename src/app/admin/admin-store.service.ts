@@ -10,6 +10,7 @@ import {
   stringifyPost,
 } from '../../shared/frontmatter'
 import { encryptPostBody } from '../../shared/post-crypto'
+import { mergeThemeSettings } from '../../shared/theme-settings'
 
 export const PATH_INDEX = 'data/posts.json'
 export const PATH_SETTINGS = 'data/settings.json'
@@ -251,7 +252,7 @@ export class AdminStore {
     const f = await this.loadFile(PATH_SETTINGS)
     const current = this.blog.settings()
     if (!f) return structuredClone(current)
-    return { ...structuredClone(current), ...JSON.parse(f.content) }
+    return mergeThemeSettings(structuredClone(current), JSON.parse(f.content))
   }
 
   async saveSettings(s: BlogSettings) {

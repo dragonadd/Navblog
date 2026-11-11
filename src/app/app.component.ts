@@ -1,5 +1,12 @@
 // Blog based on https://github.com/xjh22222228/nav (GPL-3.0)
-import { Component, computed, effect, inject, signal } from '@angular/core'
+import {
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core'
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router'
 import { filter } from 'rxjs'
 import { HeaderComponent } from './components/header.component'
@@ -9,6 +16,12 @@ import { FloatButtonsComponent } from './components/float-buttons.component'
 import { ToastComponent } from './components/toast.component'
 import { BlogService } from './services/blog.service'
 import { ThemeService } from './services/theme.service'
+import { AnnouncementStateService } from './services/announcement-state.service'
+import { readAnnouncement, announcementVersion } from '../shared/announcement'
+import {
+  availableSidebarModules,
+  sidebarModuleSide,
+} from '../shared/theme-settings'
 
 @Component({
   selector: 'app-root',
@@ -22,7 +35,7 @@ import { ThemeService } from './services/theme.service'
   ],
   template: `
     <div id="theme-fuwari" class="fuwari-bg flex min-h-screen flex-col">
-      <app-header />
+      <app-header [wide]="wideLayout()" />
       @if (isAdmin()) {
         <main class="mx-auto w-full max-w-6xl flex-1 px-3 pt-4 pb-12 md:px-4">
           <router-outlet />
@@ -47,18 +60,46 @@ import { ThemeService } from './services/theme.service'
           class="mx-auto w-full max-w-6xl flex-1 px-3 pb-12 md:px-4"
           [class.fuwari-main-overlap]="showHero()"
           [class.fuwari-main-plain]="!showHero()"
+          [class.fuwari-wide]="wideLayout()"
         >
           <div
             class="grid grid-cols-[minmax(0,1fr)] gap-4 lg:gap-6"
-            [class.fuwari-with-sidebar]="!hideSidebar()"
-            [class.fuwari-sidebar-reverse]="
-              !hideSidebar() && settings().sidebarReverse
+            [class.fuwari-with-sidebar]="
+              !hideSidebar() &&
+              desktop() &&
+              (leftModules().length || rightModules().length)
             "
+            [class.fuwari-sidebar-reverse]="
+              desktop() && !leftModules().length && rightModules().length
+            "
+            [class.fuwari-both-sidebars]="wideLayout()"
           >
             @if (!hideSidebar()) {
-              <div class="fuwari-sidebar-column order-2 min-w-0 lg:order-1">
-                <app-sidebar />
-              </div>
+              @if (desktop()) {
+                @if (leftModules().length) {
+                  <aside
+                    class="fuwari-sidebar-column order-2 min-w-0 lg:order-1"
+                    aria-label="左侧栏"
+                  >
+                    <app-sidebar [modules]="leftModules()" />
+                  </aside>
+                }
+                @if (rightModules().length) {
+                  <aside
+                    class="fuwari-sidebar-column order-3 min-w-0"
+                    aria-label="右侧栏"
+                  >
+                    <app-sidebar [modules]="rightModules()" />
+                  </aside>
+                }
+              } @else {
+                <aside
+                  class="fuwari-sidebar-column order-2 min-w-0"
+                  aria-label="侧栏"
+                >
+                  <app-sidebar [modules]="sidebarModules()" />
+                </aside>
+              }
             }
             <div class="fuwari-content-column order-1 min-w-0 lg:order-2">
               <router-outlet />
@@ -79,7 +120,9 @@ export class AppComponent {
   private blog = inject(BlogService)
   // 初始化主题
   private theme = inject(ThemeService)
+  private announcementState = inject(AnnouncementStateService)
   readonly settings = this.blog.settings
+  readonly desktop = signal(false)
   readonly url = signal(
     location.pathname.startsWith(this.blog.config.baseHref)
       ? location.pathname.slice(this.blog.config.baseHref.length - 1)
@@ -101,11 +144,50 @@ export class AppComponent {
       return false
     }
   })
+  readonly sidebarModules = computed(() => {
+    const s = this.settings(),
+      a = readAnnouncement(s)
+    return availableSidebarModules(s, {
+      announcement:
+        a.enabled &&
+        !!(a.text || a.link) &&
+        (!a.closable ||
+          this.announcementState.dismissed() !== announcementVersion(a)),
+      categories: this.blog.categories().length > 0,
+      tags: this.blog.tags().length > 0,
+      toc: this.blog.toc().length > 0,
+    })
+  })
+  readonly leftModules = computed(() =>
+    this.sidebarModules().filter(
+      (key) => sidebarModuleSide(this.settings(), key) === 'left',
+    ),
+  )
+  readonly rightModules = computed(() =>
+    this.sidebarModules().filter(
+      (key) => sidebarModuleSide(this.settings(), key) === 'right',
+    ),
+  )
+  readonly wideLayout = computed(
+    () =>
+      !this.isAdmin() &&
+      !this.hideSidebar() &&
+      this.desktop() &&
+      !!this.leftModules().length &&
+      !!this.rightModules().length,
+  )
   readonly heroBg = computed(
     () => `url("${this.blog.url(this.settings().heroImage)}")`,
   )
 
   constructor() {
+    const media = window.matchMedia('(min-width: 1024px)')
+    const updateDesktop = () => this.desktop.set(media.matches)
+    updateDesktop()
+    media.addEventListener('change', updateDesktop)
+    inject(DestroyRef).onDestroy(() =>
+      media.removeEventListener('change', updateDesktop),
+    )
     // 移除构建时注入的预渲染内容
     document.getElementById('prerender')?.remove()
     this.router.events

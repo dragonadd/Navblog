@@ -38,12 +38,28 @@ export interface SocialLink {
   url: string
 }
 
-export interface MenuLink {
+export interface MenuItem {
   name: string
   url: string
   /** 新窗口打开 */
   blank?: boolean
+  visible?: boolean
 }
+
+export interface MenuLink extends MenuItem {
+  children?: MenuItem[]
+}
+
+export type SidebarModule =
+  | 'profile'
+  | 'announcement'
+  | 'stats'
+  | 'latestPosts'
+  | 'contact'
+  | 'categories'
+  | 'tags'
+  | 'toc'
+export type SidebarSide = 'left' | 'right'
 
 export interface GiscusConfig {
   enable: boolean
@@ -63,6 +79,7 @@ export interface BlogSettings {
   darkStart?: number
   darkEnd?: number
   sidebarReverse?: boolean
+  sidebarPositions?: Partial<Record<SidebarModule, SidebarSide>>
   beiAn?: string
   beiAnLink?: string
   beiAnGongan?: string
@@ -114,6 +131,8 @@ export interface BlogSettings {
   menuArchive?: boolean
   menuCategories?: boolean
   menuTags?: boolean
+  menuMoments?: boolean
+  menuAbout?: boolean
   menuSearch?: boolean
   title: string
   subtitle: string

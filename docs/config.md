@@ -12,7 +12,8 @@
 | --- | --- |
 | `appearance` | `system`（默认，跟随系统）、`light`、`dark`、`auto`（按时段） |
 | `darkStart` / `darkEnd` | 0–23 整数小时，默认 22 / 7；开始包含，结束不包含；支持跨午夜，同起止表示全天浅色。按访客浏览器本地时间判断 |
-| `sidebarReverse` | 默认 false；开启后桌面侧栏在右侧，手机正文顺序及全宽文章保持原行为 |
+| `sidebarReverse` | 兼容旧配置，默认 false；仅作为未设置模块位置时的默认方向，新配置使用 sidebarPositions |
+| `sidebarPositions` | 按模块选择 left / right；支持 profile、announcement、stats、latestPosts、contact、categories、tags、toc。左右都有可见模块时显示三栏，手机保持原顺序单列 |
 | `beiAn` / `beiAnLink` | ICP 备案号及 HTTP(S) 查询链接；未填不显示，链接默认工信部查询网站 |
 | `beiAnGongan` | 公安备案文字；提取其中的备案数字生成官方查询链接，无数字时链接到查询首页 |
 | `rssEnable` | 默认 true；关闭后构建不输出 rss.xml，HTML 订阅头及侧栏本站 RSS 链接也隐藏 |
@@ -126,7 +127,7 @@ https://example.com/quote | data.content
 
 ### 主页公告
 
-后台 **站点设置 → 主页公告** 可配置，公告显示在侧栏头像卡片下方，呈极简便签样式；标题和喇叭图标不显示，正文保留换行，关闭按钮位于右上角。隐藏侧栏的页面也不显示公告。缺省配置不启用，不请求任何外部接口。
+后台 **站点设置 → 主页公告** 可配置，公告默认显示在侧栏头像卡片下方，可在“桌面侧栏模块位置”中独立选择左侧或右侧。卡片呈极简便签样式；标题和喇叭图标不显示，正文保留换行，关闭按钮位于右上角。隐藏侧栏的页面也不显示公告。缺省配置不启用，不请求任何外部接口。
 
 | 字段 | 说明 |
 | --- | --- |
@@ -181,12 +182,27 @@ https://example.com/quote | data.content
   { "icon": "fas fa-rss", "label": "RSS", "url": "rss.xml" }
 ],
 "menus": [
-  { "name": "友链", "url": "/posts/friends/" },
-  { "name": "GitHub", "url": "https://github.com/alice", "blank": true }
+  { "name": "友链", "url": "/posts/friends/", "visible": true },
+  { "name": "GitHub", "url": "https://github.com/alice", "blank": true },
+  {
+    "name": "更多",
+    "url": "",
+    "visible": true,
+    "children": [
+      { "name": "关于", "url": "/about", "blank": false, "visible": true },
+      { "name": "碎碎念", "url": "/moments", "visible": false }
+    ]
+  }
 ]
 ```
 
 `icon` 使用 [Font Awesome 6](https://fontawesome.com/search?o=r&m=free) 的类名。
+
+在后台“顶部菜单显示”控制 `menuHome`、`menuArchive`、`menuCategories`、`menuTags`、`menuMoments`、`menuAbout`，默认都显示；`menuSearch` 和 `mobileMenu` 控制搜索及手机菜单按钮。所有内置开关在手机和桌面一致生效。
+
+额外菜单的 `visible` 默认 true，`blank` 控制新窗口，`children` 是二级菜单数组。父菜单有链接时保留链接和独立展开按钮；没有链接时必须至少有一个子项。父子项均可隐藏，数据不会被删除；全部子项隐藏且父链接为空时不显示该分组。支持 HTTP(S)、站内路径、mailto 和 tel；保存时校验链接，拒绝凭据、危险协议和非空第三层菜单。站内链接按部署 baseHref 解析。顶栏保持 60px 吸顶，菜单过多时在中间区域横向滚动，手机下拉区域可纵向滚动。
+
+侧栏位置示例：`"sidebarPositions": { "profile": "left", "announcement": "right", "stats": "right", "toc": "right" }`。未指定模块沿用旧 `sidebarReverse`，旧设置读取后获得逐模块默认值。关闭的模块和首页尚无目录时不占用空栏；手机每个模块只渲染一次。配置与保存回归见 `scripts/test-navigation-layout.ts`。
 
 ### Giscus 评论
 

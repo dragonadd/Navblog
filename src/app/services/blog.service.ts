@@ -1,5 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core'
-import { normalizeThemeSettings } from '../../shared/theme-settings'
+import {
+  normalizeThemeSettings,
+  mergeThemeSettings,
+} from '../../shared/theme-settings'
 import { LocalDemoService } from './local-demo.service'
 import configJson from '../../generated/config.json'
 import settingsJson from '../../generated/settings.json'
@@ -27,12 +30,7 @@ function taxonomy(list: string[]): TaxonomyItem[] {
 export class BlogService {
   private demo = inject(LocalDemoService)
   readonly config = configJson as BlogConfig
-  readonly settings = signal<BlogSettings>(
-    normalizeThemeSettings({
-      ...(settingsJson as BlogSettings),
-      ...this.demo.readJson<Partial<BlogSettings>>('data/settings.json', {}),
-    }),
-  )
+  readonly settings = signal<BlogSettings>(this.readSettings())
   readonly allPosts = signal<PostMeta[]>(
     this.demo.readJson('data/posts.json', postsJson as PostMeta[]),
   )
@@ -53,13 +51,20 @@ export class BlogService {
 
   private cache = new Map<string, string>()
 
-  refreshDemo() {
-    this.settings.set(
-      normalizeThemeSettings({
-        ...(settingsJson as BlogSettings),
-        ...this.demo.readJson<Partial<BlogSettings>>('data/settings.json', {}),
-      }),
+  private readSettings(): BlogSettings {
+    return normalizeThemeSettings(
+      mergeThemeSettings(
+        settingsJson as BlogSettings,
+        this.demo.readJson<Partial<BlogSettings> | null>(
+          'data/settings.json',
+          null,
+        ),
+      ),
     )
+  }
+
+  refreshDemo() {
+    this.settings.set(this.readSettings())
     this.allPosts.set(
       this.demo.readJson('data/posts.json', postsJson as PostMeta[]),
     )

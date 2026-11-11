@@ -150,8 +150,8 @@ const nav =
     settings.menuArchive !== false ? link('archive/', '归档') : '',
     settings.menuCategories !== false ? link('categories/', '分类') : '',
     settings.menuTags !== false ? link('tags/', '标签') : '',
-    link('about/', '关于'),
-    link('moments/', '碎碎念'),
+    settings.menuAbout !== false ? link('about/', '关于') : '',
+    settings.menuMoments !== false ? link('moments/', '碎碎念') : '',
   ]
     .filter(Boolean)
     .join(' · ') +
