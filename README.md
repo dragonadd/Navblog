@@ -111,8 +111,9 @@ git add . && git commit -m "init my blog" && git push
 无论部署到哪里，**第一步都一样**：
 
 1. 点击右上角 **Fork**，把本仓库复制到你自己的账号下（仓库名随意，比如 `blog`）。
-2. 在你 Fork 出来的仓库里打开 `blog.config.yaml`，点铅笔图标在线编辑，把 `gitRepoUrl` 和 `imageRepoUrl` 中的仓库地址改成**你自己的仓库地址**，提交。
-   > 这一步决定了后台把文章保存到哪个仓库，**必须改**，否则你无法登录后台。
+2. 默认 `blog.config.yaml` 使用 `gitRepoUrl: auto` 和 `imageRepoUrl: auto`。构建时自动识别当前 Fork，图片使用同一仓库的 `images` 分支；常规 GitHub Fork 不必手动替换原作者地址。需要指定独立仓库时，再填写完整 URL。
+
+仓库地址在构建时由 YAML 生成到 `src/generated/config.json`，再打包给前端。`auto` 使用托管平台的仓库信息或 Git `origin`；没有来源时会停止构建，请运行 `pnpm run setup` 输入地址，或填写完整 URL。下载 ZIP 的用户也可通过初始化向导配置。修改地址后请用 `pnpm run build` 重新构建并部署；直接运行 `ng build` 会跳过配置准备步骤。部署后刷新后台并重新登录，会话按仓库和分支隔离。
 
 然后任选一个平台：
 
@@ -162,6 +163,8 @@ git add . && git commit -m "init my blog" && git push
    - 环境变量：`NODE_VERSION` = `22`（使用 22.12 或更新版本）
 3. 点击 **Save and Deploy**。单页路由所需的 `_redirects` 会在构建时自动生成。
 
+Cloudflare 的回退限定在 `/admin` 和具体后台页面；首页与后台 HTML 会重新校验缓存。请完整发布 `dist/browser`，其中包含 `_redirects`、`_headers` 和 JS/CSS。全站 `/* /index.html 200` 在 Cloudflare 会覆盖静态资源，引起 HTML 被当作 JS 的 MIME 错误。
+
 </details>
 
 > 💡 使用 Netlify / Vercel / Cloudflare 时，可以删除 `.github/workflows/deploy-gh-pages.yml`，避免 GitHub Actions 重复构建。
@@ -208,9 +211,9 @@ git add . && git commit -m "init my blog" && git push
 **`blog.config.yaml`** —— 构建相关，只能改文件（修改后需要重新构建）：
 
 ```yaml
-gitRepoUrl: https://github.com/<你>/<仓库>                  # 博客仓库（GitHub / Gitee / GitLab）
+gitRepoUrl: auto                                          # 自动识别当前 Fork，也可填写完整 URL
 branch: main                                                # 文章所在分支
-imageRepoUrl: https://github.com/<你>/<仓库>?branch=images  # 图片存放的仓库与分支（分支不存在会自动创建）
+imageRepoUrl: auto                                        # 跟随博客仓库的 images 分支，也可填写独立 URL
 siteUrl: https://blog.example.com                           # 站点域名（不含子路径），留空则自动识别
 baseHref: /                                                 # 部署子路径，GitHub Pages 会自动识别
 ```
@@ -282,7 +285,7 @@ docs/                   详细文档
 <details>
 <summary>后台登录提示「Token 无效」或「无权访问仓库」</summary>
 
-- 检查 `blog.config.yaml` 中的 `gitRepoUrl` 是否已改成**你自己的仓库**，并且已经重新部署。
+- 检查登录页显示的仓库是否是**你自己的仓库**。默认 `auto` 跟随当前 Fork；填写了显式 URL 时需自行修改并重新部署。
 - 检查 Token 是否勾选了对应权限、是否过期；Fine-grained Token 需要在 Repository access 中选中该仓库。
 
 </details>

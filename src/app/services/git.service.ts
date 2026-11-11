@@ -128,11 +128,9 @@ export class GitService {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json;charset=utf-8',
     }
-    if (token)
-      headers['Authorization'] =
-        r.provider === 'github' ? `token ${token}` : `Bearer ${token}`
+    if (token) headers['Authorization'] = `Bearer ${token}`
     if (r.provider === 'github')
-      headers['Accept'] = 'application/vnd.github+json'
+      headers['Accept'] = 'application/vnd.github.v3+json'
     const res = await fetch(this.apiBase(r) + path, {
       method,
       headers,
@@ -147,7 +145,7 @@ export class GitService {
     if (!res.ok) {
       const msg = data?.message || data?.error || res.statusText
       const err: any = new Error(
-        `${res.status} ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`,
+        `${res.status} ${typeof msg === 'string' ? msg : JSON.stringify(msg)}（${method} ${path.split('?')[0]}）`,
       )
       err.status = res.status
       throw err
@@ -327,7 +325,11 @@ export class GitService {
         changes[0].expectedSha !== undefined
       ) {
         const c = changes[0]
-        if (c.content === null && !c.expectedSha)
+        const old = await this.getFile(c.path, r)
+        this.assertVersion(c, old)
+        if (old && !old.sha)
+          throw new Error('无法获取文件 SHA，请重新读取后重试')
+        if (c.content === null && !old)
           throw new Error('文件已移除，请刷新状态')
         await this.request(
           c.content === null ? 'DELETE' : 'PUT',
@@ -338,7 +340,7 @@ export class GitService {
             ...(c.content === null
               ? {}
               : { content: c.base64 ? c.content : Base64.encode(c.content) }),
-            ...(c.expectedSha ? { sha: c.expectedSha } : {}),
+            ...(old ? { sha: old.sha } : {}),
           },
           r,
         )

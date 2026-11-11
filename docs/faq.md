@@ -3,7 +3,7 @@
 ### 后台登录失败
 
 - **「Token 无效」**：Token 复制不完整、已过期，或者选错了平台（GitHub Token 不能用于 Gitee 仓库）。
-- **「无权访问仓库」**：`blog.config.yaml` 中的 `gitRepoUrl` 不是你的仓库（Fork 后忘记修改），或 Fine-grained Token 没有选中该仓库。修改配置后需要重新部署。
+- **「无权访问仓库」**：先核对登录页的仓库地址。默认 auto 跟随当前 Fork；显式 URL 需填写自己的仓库。Fine-grained Token 也必须选中这个仓库并具有 Contents 写权限。修改配置后需重新部署和登录。
 
 ### 保存成功但前台没变化
 

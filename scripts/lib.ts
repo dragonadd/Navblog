@@ -6,6 +6,7 @@ import { parseMoments, formatMomentDate } from '../src/shared/moments'
 import { parseAuth } from '../src/shared/auth'
 import path from 'node:path'
 import yaml from 'js-yaml'
+import { readRepositoryOrigin, resolveRepository } from './repository'
 import type { BlogConfig, BlogSettings, PostMeta } from '../src/shared/types'
 import {
   parseFrontMatter,
@@ -57,10 +58,24 @@ export function readConfig(): BlogConfig {
   let baseHref = String(raw.baseHref || '/').trim()
   if (!baseHref.startsWith('/')) baseHref = '/' + baseHref
   if (!baseHref.endsWith('/')) baseHref += '/'
+  const repoSetting = String(raw.gitRepoUrl || '').trim()
+  const gitRepoUrl = resolveRepository(
+    repoSetting,
+    env,
+    repoSetting === 'auto' ? readRepositoryOrigin(ROOT) : '',
+  )
+  let imageRepoUrl = String(raw.imageRepoUrl || '').trim()
+  if (imageRepoUrl === 'auto') {
+    if (gitRepoUrl) {
+      const image = new URL(gitRepoUrl)
+      image.searchParams.set('branch', 'images')
+      imageRepoUrl = image.href
+    } else imageRepoUrl = ''
+  } else imageRepoUrl = resolveRepository(imageRepoUrl, env, '')
   return {
-    gitRepoUrl: String(raw.gitRepoUrl || '').trim(),
+    gitRepoUrl,
     branch: String(raw.branch || 'main').trim(),
-    imageRepoUrl: String(raw.imageRepoUrl || '').trim(),
+    imageRepoUrl,
     siteUrl: String(raw.siteUrl || '')
       .trim()
       .replace(/\/+$/, ''),

@@ -1,16 +1,18 @@
 # 博客基础配置（构建时读取，修改后需要重新构建）
+# auto 从托管环境或 Git origin 识别当前仓库，Fork 后自动跟随副本；也可填写完整 URL。
 # 仓库地址：支持 GitHub / Gitee / GitLab
 #   GitHub: https://github.com/<用户名>/<仓库名>
 #   Gitee:  https://gitee.com/<用户名>/<仓库名>
 #   GitLab: https://gitlab.com/<用户名>/<仓库名>  (可选 ?projectId=123)
-gitRepoUrl: https://github.com/dragonadd/nav1
+gitRepoUrl: auto
 
 # 文章/设置所在分支（后台保存时提交到这个分支）
 branch: main
 
+# auto 跟随博客仓库并使用 images 分支；也可填写独立仓库地址。
 # 图片存放仓库，?branch= 指定分支（不存在会自动创建空分支，仅 GitHub）
 # 留空则使用 gitRepoUrl 的 image 分支
-imageRepoUrl: https://github.com/dragonadd/nav1?branch=images
+imageRepoUrl: auto
 
 # 站点正式访问地址（用于 sitemap / RSS / canonical / 版权链接），末尾不要带 /
 siteUrl: https://example.com

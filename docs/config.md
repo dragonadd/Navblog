@@ -34,11 +34,17 @@ PWA 本轮仅落地安装参数；未添加 Service Worker 或离线缓存，也
 
 构建时读取，修改后需要重新构建（提交到仓库即可自动构建）。
 
+读取链路是 `blog.config.yaml` → `scripts/lib.ts` 的 `readConfig()` → `scripts/prepare.ts` 生成 `src/generated/config.json` → `BlogService.config` → `GitService.parseRepo()`。API 地址按解析后的 owner/repo 拼接；不会从浏览器实时读取 YAML。请使用包含准备步骤的 `pnpm run build`，然后重新部署和登录。当前默认使用 `auto`，本地 Git origin 已指向 `dragonadd/Navblog`。
+
+`auto` 优先使用 GitHub Actions 的仓库信息，其次是 Netlify `REPOSITORY_URL`、Vercel GitHub 仓库信息、GitLab CI 的项目 URL，最后读取 Git `origin`。自动识别支持 github.com、gitee.com、gitlab.com，远程 URL 中的凭据不会写入公开配置。自托管 GitLab或特殊命名空间请填写完整 URL，必要时附加 `projectId`。显式 URL 始终优先；不能含登录凭据，查询参数只支持 `branch` 和 `projectId`。
+
+没有来源时构建会停止并提示初始化。`pnpm run setup` 接受 `auto` 或完整 URL；保留 auto 可让后续 Fork 继续自动识别。输入结束会取消初始化，当前文件不会被写入。
+
 | 字段 | 说明 | 示例 |
 | --- | --- | --- |
-| `gitRepoUrl` | 博客源码仓库，后台把文章提交到这里。支持 GitHub / Gitee / GitLab；GitLab 可附加 `?projectId=123` | `https://github.com/alice/blog` |
+| `gitRepoUrl` | 默认 `auto`，跟随当前 Fork；也可指定完整 GitHub / Gitee / GitLab URL，GitLab 可附加 `?projectId=123` | `auto` |
 | `branch` | 文章所在分支 | `main` |
-| `imageRepoUrl` | 图片存放仓库，`?branch=` 指定分支。留空则使用 `gitRepoUrl` 的 `image` 分支 | `https://github.com/alice/blog?branch=images` |
+| `imageRepoUrl` | 默认 `auto`，跟随源码仓库的 `images` 分支；独立仓库可填 URL，`?branch=` 指定分支。显式留空保留原 `image` 分支回退 | `auto` |
 | `siteUrl` | 站点域名，只填协议 + 域名，不要带子路径和结尾 `/`。用于 sitemap、RSS、canonical、版权链接。留空时会自动从托管平台环境变量识别 | `https://blog.alice.dev` |
 | `baseHref` | 站点部署的子路径。GitHub Pages 项目页为 `/<仓库名>/`（GitHub Actions 会自动设置），其他情况保持 `/` | `/` |
 

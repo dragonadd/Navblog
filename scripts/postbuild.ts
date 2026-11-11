@@ -407,10 +407,14 @@ fs.writeFileSync(
 )
 // GitHub Pages：禁用 Jekyll
 fs.writeFileSync(path.join(dist, '.nojekyll'), '')
-// Cloudflare 规则优先于已有资源，只为缺少静态文件的后台子路由回退。
+// Cloudflare 规则优先于已有资源，只匹配后台页面，避免把 JS/CSS 改写成 HTML。
 fs.writeFileSync(
   path.join(dist, '_redirects'),
   [
+    ...['', '/'].map(
+      (suffix) =>
+        `${config.baseHref}admin${suffix} ${config.baseHref}admin/index.html 200`,
+    ),
     ...['login', 'new', 'settings', 'about', 'moments'].flatMap((route) =>
       ['', '/'].map(
         (suffix) =>
@@ -422,7 +426,13 @@ fs.writeFileSync(
 )
 fs.writeFileSync(
   path.join(dist, '_headers'),
-  `${config.baseHref}data/auth.json\n  Cache-Control: no-store, max-age=0\n`,
+  [
+    `${config.baseHref}\n  Cache-Control: no-cache`,
+    `${config.baseHref}index.html\n  Cache-Control: no-cache`,
+    `${config.baseHref}admin\n  Cache-Control: no-cache`,
+    `${config.baseHref}admin/*\n  Cache-Control: no-cache`,
+    `${config.baseHref}data/auth.json\n  Cache-Control: no-store, max-age=0`,
+  ].join('\n\n') + '\n',
 )
 
 console.log(

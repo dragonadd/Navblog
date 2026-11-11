@@ -193,7 +193,7 @@ test('图片在演示中返回 Data URL，不上传到 Git', async (t) => {
 test('普通 Token 模式仍通过 Git API 读取文件', async (t) => {
   const fetch = t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.match(String(url), /\/contents\/data\/about.md/)
-    assert.equal((options?.headers as Record<string, string>).Authorization, 'token test-existing-token')
+    assert.equal((options?.headers as Record<string, string>).Authorization, 'Bearer test-existing-token')
     return new Response(JSON.stringify({ content: Buffer.from('远程正文').toString('base64'), sha: 'remote-sha' }))
   })
   const { demo, git } = services()

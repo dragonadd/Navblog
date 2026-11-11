@@ -4,9 +4,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
-import { PATHS, ROOT } from './lib'
+import { PATHS, ROOT, readConfig } from './lib'
 
 const original = fs.readFileSync(PATHS.settings, 'utf8')
+const repositoryEnv = process.env.GITHUB_REPOSITORY
+const serverEnv = process.env.GITHUB_SERVER_URL
 const id = randomUUID(),
   slug = `acceptance-${id}`,
   draftSlug = `${slug}-draft`
@@ -56,6 +58,8 @@ function walk(dir: string): string[] {
     )
 }
 try {
+  process.env.GITHUB_REPOSITORY = 'fork-smoke-owner/ForkBlog'
+  process.env.GITHUB_SERVER_URL = 'https://github.com'
   fs.writeFileSync(
     PATHS.settings,
     JSON.stringify({
@@ -170,9 +174,67 @@ try {
       `${base}Cloudflare 回退不覆盖静态资源`,
     )
     check(matches(base + 'admin/settings'), `${base}后台子路由仍有回退`)
+    check(
+      matches(base + 'admin') && matches(base + 'admin/'),
+      `${base}后台根路径与尾斜杠均有回退`,
+    )
+    const adminHtml = fs.readFileSync(
+      path.join(PATHS.dist, 'admin', 'index.html'),
+      'utf8',
+    )
+    check(
+      adminHtml.includes(`<base href="${base}"`),
+      `${base}后台HTML使用正确部署前缀`,
+    )
+    for (const [name, page] of [
+      ['首页', html],
+      ['后台', adminHtml],
+    ]) {
+      const assets = [
+        ...page.matchAll(/(?:src|href)="([^"?#]+\.(?:js|css))"/g),
+      ].map((m) => m[1])
+      check(
+        assets.length > 0 &&
+          assets.every((asset) => {
+            const url = new URL(asset, 'https://test.example' + base)
+            if (url.origin !== 'https://test.example') return true
+            const file = path.join(PATHS.dist, url.pathname.slice(base.length))
+            return (
+              url.pathname.startsWith(base) &&
+              fs.existsSync(file) &&
+              !/^\s*<!doctype html/i.test(fs.readFileSync(file, 'utf8'))
+            )
+          }),
+        `${base}${name}JS/CSS路径存在且不返回HTML`,
+      )
+    }
+    const generatedConfig = JSON.parse(
+      fs.readFileSync(path.join(PATHS.generated, 'config.json'), 'utf8'),
+    )
+    check(
+      generatedConfig.gitRepoUrl === readConfig().gitRepoUrl &&
+        generatedConfig.imageRepoUrl === readConfig().imageRepoUrl,
+      `${base}生成配置使用YAML仓库地址`,
+    )
+    const expectedRepo = readConfig().gitRepoUrl
+    check(
+      publicFiles
+        .filter((file) => file.endsWith('.js'))
+        .some((file) => fs.readFileSync(file, 'utf8').includes(expectedRepo)),
+      `${base}实际JS包使用解析后的Fork或显式仓库地址`,
+    )
+    const headers = fs.readFileSync(path.join(PATHS.dist, '_headers'), 'utf8')
+    check(
+      headers.includes(`${base}admin/*\n  Cache-Control: no-cache`),
+      `${base}后台HTML缓存允许部署后重新校验`,
+    )
   }
   assert.deepEqual(failures, [], '构建回归失败')
 } finally {
+  if (repositoryEnv === undefined) delete process.env.GITHUB_REPOSITORY
+  else process.env.GITHUB_REPOSITORY = repositoryEnv
+  if (serverEnv === undefined) delete process.env.GITHUB_SERVER_URL
+  else process.env.GITHUB_SERVER_URL = serverEnv
   fs.writeFileSync(PATHS.settings, original)
   for (const file of [postFile, draftFile])
     if (fs.existsSync(file)) fs.unlinkSync(file)

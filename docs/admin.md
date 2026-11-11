@@ -74,6 +74,8 @@ Token 仅存当前标签页的 `sessionStorage`，刷新可保留，点击 **退
 
 GitHub 多文件提交在固定 Git head 上核验版本，再原子更新分支；GitLab 使用文件 `last_commit_id` 条件提交。Gitee 会先预检全部文件，再逐个按 SHA 更新，过程中失败仍可能部分提交，不能视为一个事务；请检查仓库、重新读取后继续。
 
+GitHub 请求统一使用 `Authorization: Bearer <token>` 和 `Accept: application/vnd.github.v3+json`。单文件写入在 PUT/DELETE 前再次读取文件并核验原 SHA，更新和删除带上文件 SHA；新建文件不带 SHA。文本内容使用 UTF-8 Base64，已编码内容直接传递。请求失败会提示请求方式和接口路径，便于核对仓库地址，不输出 Token 或提交正文。
+
 只有 `data/posts/` 顶层 Markdown 参与文章读取和发布。草稿不会进入公开源码资源或前端索引，但公开仓库里的源文件及 Git 历史仍可被访问。
 
 > 修改 Slug 相当于重命名文章，旧地址会失效。

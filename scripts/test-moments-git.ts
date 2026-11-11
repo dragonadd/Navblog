@@ -50,6 +50,10 @@ function git(repo: string) {
 test('GitHub 动态单文件提交绑定读取时 SHA，不使用最新 head 覆盖旧数据', async (t) => {
   const { injector, service } = git('https://github.com/alice/blog')
   const fetch = t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (options?.method === 'GET')
+      return new Response(
+        JSON.stringify({ content: 'W10=', sha: 'read-version' }),
+      )
     assert.equal(options?.method, 'PUT')
     assert.match(String(url), /contents\/data\/moments.json/)
     const payload = JSON.parse(options?.body as string)
@@ -72,7 +76,7 @@ test('GitHub 动态单文件提交绑定读取时 SHA，不使用最新 head 覆
       ),
       /conflict/,
     )
-    assert.equal(fetch.mock.callCount(), 1)
+    assert.equal(fetch.mock.callCount(), 2)
   } finally {
     injector.destroy()
   }

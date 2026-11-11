@@ -2,13 +2,13 @@
   "name": "navblog",
   "version": "1.0.0",
   "description": "NavBlog —— 纯静态、却能在线进入后台编辑的个人博客系统，Fuwari 风格主题（基于 xjh22222228/nav 改造，GPL-3.0）",
-  "homepage": "https://github.com/dragonadd/nav1",
+  "homepage": "https://github.com/dragonadd/Navblog",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dragonadd/nav1.git"
+    "url": "git+https://github.com/dragonadd/Navblog.git"
   },
   "bugs": {
-    "url": "https://github.com/dragonadd/nav1/issues"
+    "url": "https://github.com/dragonadd/Navblog/issues"
   },
   "keywords": [
     "blog",

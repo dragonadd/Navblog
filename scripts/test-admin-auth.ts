@@ -41,7 +41,7 @@ test('旧会话迟到的401不能清除已重新登录的新会话', async (t) =
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     if (
       (options?.headers as Record<string, string>).Authorization ===
-      'token old-test-token'
+      'Bearer old-test-token'
     )
       return new Promise<Response>((resolve) => {
         release = () =>

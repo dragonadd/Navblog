@@ -107,7 +107,11 @@ Netlify 会自动监听仓库提交并重新构建。
 4. 点击 **Save and Deploy**。
 5. **Custom domains** 中可以绑定自定义域名（域名托管在 Cloudflare 时最方便）。
 
-构建会为后台登录、设置、编辑等没有独立静态文件的路径生成限定的 `_redirects` 回退。Cloudflare 的规则优先于已有资源，不要添加 `/* /index.html 200`，否则 JS、CSS 和 `data/auth.json` 也会被改写为 HTML。文章和碎碎念使用各自预渲染静态页，未知地址使用 `404.html`；Netlify 的通用回退仍由 `netlify.toml` 管理。
+构建会为 `/admin`、`/admin/` 以及后台登录、设置、编辑等路径生成限定的 `_redirects` 回退，目标为已经生成的 `admin/index.html`。Cloudflare 的规则优先于已有资源，不要添加 `/* /index.html 200`，否则 JS、CSS 和 `data/auth.json` 也会被改写为 HTML。文章和碎碎念使用各自预渲染静态页，未知地址使用 `404.html`；Netlify 的通用回退仍由 `netlify.toml` 管理。
+
+请完整发布 `dist/browser`，确保 `_redirects`、`_headers`、HTML 和哈希命名的 JS/CSS 属于同一次构建。`_headers` 使首页和后台 HTML 重新校验缓存，认证文件保持 no-store；仓库地址修改后，先重新部署，再刷新后台并重新登录。Cloudflare 根域部署的 `baseHref` 保持 `/`。
+
+默认仓库配置为 auto，Fork 后从构建环境或 Git origin 识别副本。Cloudflare 构建环境缺少 Git origin 时，请在 YAML 中填写完整仓库 URL；识别失败会阻止构建，避免发布仍向原作者仓库请求的版本。其他托管平台可使用其仓库环境信息；用户手动填写的 URL 不会被自动覆盖。
 
 ---
 
