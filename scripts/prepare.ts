@@ -18,6 +18,10 @@ import { renderCustomResources } from '../src/shared/custom-resources'
 import { resolveDark } from '../src/shared/theme-settings'
 
 const config = readConfig()
+if (!config.branch)
+  throw new Error(
+    '无法识别部署分支，请在 blog.config.yaml 指定 branch，或运行 pnpm run setup',
+  )
 if (!config.gitRepoUrl)
   throw new Error(
     '无法识别博客仓库，请设置 Git origin、运行 pnpm run setup，或在 blog.config.yaml 填写完整的 gitRepoUrl',

@@ -6,7 +6,12 @@ import { parseMoments, formatMomentDate } from '../src/shared/moments'
 import { parseAuth } from '../src/shared/auth'
 import path from 'node:path'
 import yaml from 'js-yaml'
-import { readRepositoryOrigin, resolveRepository } from './repository'
+import {
+  readRepositoryOrigin,
+  resolveRepository,
+  readRepositoryBranch,
+  resolveBranch,
+} from './repository'
 import type { BlogConfig, BlogSettings, PostMeta } from '../src/shared/types'
 import {
   parseFrontMatter,
@@ -72,9 +77,15 @@ export function readConfig(): BlogConfig {
       imageRepoUrl = image.href
     } else imageRepoUrl = ''
   } else imageRepoUrl = resolveRepository(imageRepoUrl, env, '')
+  const branchSetting = String(raw.branch || 'auto').trim()
+  const branch = resolveBranch(
+    branchSetting,
+    env,
+    branchSetting === 'auto' ? readRepositoryBranch(ROOT) : '',
+  )
   return {
     gitRepoUrl,
-    branch: String(raw.branch || 'main').trim(),
+    branch,
     imageRepoUrl,
     siteUrl: String(raw.siteUrl || '')
       .trim()

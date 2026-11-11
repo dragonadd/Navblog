@@ -4,6 +4,7 @@ import { AUTH_DEPLOY_MESSAGE, validLoginPassword } from '../../shared/auth'
 import { AuthService } from '../services/auth.service'
 import { LocalDemoService } from '../services/local-demo.service'
 import { ToastService } from '../services/toast.service'
+import { GitService } from '../services/git.service'
 
 @Component({
   selector: 'app-login-password',
@@ -17,6 +18,10 @@ import { ToastService } from '../services/toast.service'
           登录后管理密码。
         </p>
       } @else {
+        <p class="fuwari-muted mb-3 break-all text-xs">
+          凭证保存到 {{ git.repo.owner }}/{{ git.repo.repo }} · 分支
+          {{ git.repo.branch }} · data/auth.json
+        </p>
         <div class="mb-4 flex flex-wrap items-center gap-3 text-sm">
           <span>{{ statusText() }}</span
           ><button
@@ -141,6 +146,7 @@ import { ToastService } from '../services/toast.service'
 })
 export class LoginPasswordComponent implements OnDestroy {
   readonly demo = inject(LocalDemoService)
+  readonly git = inject(GitService)
   private auth = inject(AuthService)
   private toast = inject(ToastService)
   readonly status = signal<'unknown' | 'unset' | 'set' | 'invalid'>('unknown')

@@ -22,7 +22,7 @@ afterEach(() => {
 })
 const response = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), { status })
-function setup(repo = 'https://github.com/dragonadd/Navblog') {
+function setup(repo = 'https://github.com/dragonadd/Navblog', branch = 'main') {
   const local = new Map([['token', 'legacy-test-token']]),
     session = new Map<string, string>()
   const storage = (map: Map<string, string>) => ({
@@ -43,7 +43,8 @@ function setup(repo = 'https://github.com/dragonadd/Navblog') {
       {
         provide: BlogService,
         useValue: {
-          config: { gitRepoUrl: repo, branch: 'main', imageRepoUrl: '' },
+          config: { gitRepoUrl: repo, branch, imageRepoUrl: '' },
+          url: (path: string) => 'https://site.example/' + path,
           settings: signal({ actionUrl: '' }),
         },
       },
@@ -92,6 +93,71 @@ test('配置中的仓库名用于实际请求，Bearer/Accept齐全，新登录�
     } finally {
       s.injector.destroy()
     }
+  }
+})
+
+test('test分支设置密码、部署读取和密码登录使用同一凭证，不写main', async (t) => {
+  const s = setup('https://github.com/dragonadd/Navblog', 'test'),
+    auth = s.injector.get(AuthService),
+    password = 'Test1234'
+  const files = new Map([
+    ['main', { content: 'unchanged-main-credential', sha: 'main-sha' }],
+  ])
+  let testFile: { content: string; sha: string } | null = null,
+    deployed = ''
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const target = new URL(String(url))
+    if (target.hostname === 'site.example')
+      return new Response(deployed, {
+        headers: { 'Content-Type': 'application/json' },
+      })
+    if (target.pathname === '/user') return response({ login: 'dragonadd' })
+    if (target.pathname === '/repos/dragonadd/Navblog')
+      return response({ permissions: { push: true } })
+    assert.equal(
+      target.pathname,
+      '/repos/dragonadd/Navblog/contents/data/auth.json',
+    )
+    if (options?.method === 'GET') {
+      assert.equal(target.searchParams.get('ref'), 'test')
+      return testFile
+        ? response({
+            content: Buffer.from(testFile.content).toString('base64'),
+            sha: testFile.sha,
+          })
+        : response({ message: 'Not Found' }, 404)
+    }
+    const body = JSON.parse(String(options?.body))
+    assert.equal(body.branch, 'test')
+    assert.equal(body.sha, testFile?.sha)
+    testFile = {
+      content: Buffer.from(body.content, 'base64').toString('utf8'),
+      sha: 'test-auth-sha',
+    }
+    files.set(body.branch, testFile)
+    return response({})
+  })
+  try {
+    assert.equal(await auth.loadManagement(), 'unset')
+    await auth.setPassword(password, password)
+    deployed = testFile!.content
+    await assert.rejects(
+      decryptAuth(
+        deployed,
+        password,
+        authIdentity({ ...s.git.repo, branch: 'main' }),
+      ),
+    )
+    s.git.logout()
+    const source = await auth.loadPublic()
+    const token = await decryptAuth(source!, password, authIdentity(s.git.repo))
+    await s.git.login(token)
+    assert.equal(s.git.repo.branch, 'test')
+    assert.equal(s.git.isLogin(), true)
+    assert.equal(s.session.get(s.git.sessionKey), token)
+    assert.equal(files.get('main')?.content, 'unchanged-main-credential')
+  } finally {
+    s.injector.destroy()
   }
 })
 

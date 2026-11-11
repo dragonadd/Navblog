@@ -6,7 +6,12 @@ import readline from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
 import yaml from 'js-yaml'
 import { PATHS, ROOT, readSettings } from './lib'
-import { readRepositoryOrigin, resolveRepository } from './repository'
+import {
+  readRepositoryOrigin,
+  resolveRepository,
+  readRepositoryBranch,
+  resolveBranch,
+} from './repository'
 import type { BlogConfig } from '../src/shared/types'
 
 const rl = readline.createInterface({
@@ -100,7 +105,25 @@ async function main() {
     )
   }
   const repo = parseRepo(repoUrl)!
-  const branch = await ask('文章所在分支', config.branch || 'main')
+  const detectedBranch = resolveBranch(
+    'auto',
+    process.env,
+    readRepositoryBranch(ROOT),
+  )
+  const branchDefault =
+    config.branch === 'auto'
+      ? detectedBranch
+        ? 'auto'
+        : 'main'
+      : config.branch || 'main'
+  let branch = ''
+  while (true) {
+    branch = await ask('文章/凭证所在分支（auto 跟随部署分支）', branchDefault)
+    try {
+      if (branch === 'auto' || resolveBranch(branch, {}, '')) break
+    } catch {}
+    console.log('  ✗ 请填写有效的 Git 分支名称或 auto')
+  }
   const imageDefault = new URL(repoUrl)
   imageDefault.searchParams.set('branch', 'images')
   let imageRepoUrl = ''

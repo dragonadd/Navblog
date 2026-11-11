@@ -218,7 +218,7 @@ function now() {
                   >{{
                     hasExistingPassword()
                       ? '新密码（留空沿用解锁密码）'
-                      : '加密密码（至少 12 个字符）'
+                      : '加密密码（至少 4 个字符）'
                   }}<input
                     class="fuwari-input mt-1"
                     type="password"

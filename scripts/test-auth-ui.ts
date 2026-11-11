@@ -97,6 +97,7 @@ test('密码模块强度/确认校验阻止保存，提交失败保留错误和�
         },
       },
       { provide: LocalDemoService, useValue: { active: () => false } },
+      { provide: GitService, useValue: { repo } },
       {
         provide: ToastService,
         useValue: { success: (s: string) => messages.push(s) },
@@ -123,6 +124,56 @@ test('密码模块强度/确认校验阻止保存，提交失败保留错误和�
     assert.equal(messages.length, 0)
     component.ngOnDestroy()
     assert.equal(component.password(), '')
+  } finally {
+    injector.destroy()
+  }
+})
+
+test('密码解密后401提示Token与部署分支问题，仍可切换Token登录', async () => {
+  const target = { ...repo, branch: 'test' },
+    password = 'Test1234',
+    token = 'expired-test-token'
+  const source = await encryptAuth(token, password, authIdentity(target))
+  const logins: string[] = []
+  const injector = createEnvironmentInjector(
+    [
+      { provide: AuthService, useValue: { loadPublic: async () => source } },
+      { provide: BlogService, useValue: { setTitle() {} } },
+      {
+        provide: GitService,
+        useValue: {
+          repo: target,
+          isLogin: () => false,
+          cancelPendingLogin() {},
+          login: async (value: string) => {
+            logins.push(value)
+            if (value === token)
+              throw Object.assign(new Error('401 Bad credentials'), {
+                status: 401,
+              })
+          },
+        },
+      },
+      { provide: LocalDemoService, useValue: { active: () => false } },
+      { provide: ToastService, useValue: { success() {} } },
+      { provide: Router, useValue: { navigateByUrl() {} } },
+    ],
+    null as any,
+  )
+  try {
+    const page = injector.runInContext(() => new LoginPage())
+    await next()
+    page.password = password
+    await page.submit({ preventDefault() {} } as Event)
+    assert.equal(logins[0], token)
+    assert.match(page.loginError(), /Token.*验证失败/)
+    assert.match(page.loginError(), /分支 test/)
+    page.selectMode('token')
+    page.token = 'new-valid-test-token'
+    await page.submit({ preventDefault() {} } as Event)
+    assert.equal(logins[1], 'new-valid-test-token')
+    assert.equal(page.loginError(), '')
+    page.ngOnDestroy()
   } finally {
     injector.destroy()
   }

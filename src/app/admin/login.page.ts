@@ -25,6 +25,9 @@ import { authIdentity, decryptAuth } from '../../shared/auth'
         <p class="fuwari-muted mt-4 break-all text-xs">
           仓库：{{ blog.config.gitRepoUrl || '请先配置仓库地址' }}
         </p>
+        <p class="fuwari-muted mt-1 break-all text-xs">
+          提交分支：{{ git.repo.branch }}
+        </p>
         @if (checking()) {
           <p class="fuwari-muted mt-4 text-sm" role="status">
             正在读取登录配置…
@@ -245,7 +248,12 @@ export class LoginPage implements OnDestroy {
       this.toast.success('登录成功')
       this.router.navigateByUrl('/admin')
     } catch (e: any) {
-      if (this.alive) this.loginError.set(e.message || '登录失败，请重试')
+      if (this.alive)
+        this.loginError.set(
+          mode === 'password' && e.status === 401
+            ? `密码已解密，但 Git Token 验证失败。请用有效 Token 登录分支 ${this.git.repo.branch}，重新设置登录密码并等待该分支部署完成。`
+            : e.message || '登录失败，请重试',
+        )
     } finally {
       if (this.alive) this.loading.set(false)
     }

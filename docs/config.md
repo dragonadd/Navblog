@@ -43,12 +43,14 @@ PWA 本轮仅落地安装参数；未添加 Service Worker 或离线缓存，也
 | 字段 | 说明 | 示例 |
 | --- | --- | --- |
 | `gitRepoUrl` | 默认 `auto`，跟随当前 Fork；也可指定完整 GitHub / Gitee / GitLab URL，GitLab 可附加 `?projectId=123` | `auto` |
-| `branch` | 文章所在分支 | `main` |
+| `branch` | 默认 `auto`，跟随部署分支或当前本地分支；也可固定为 main/test 等有效 Git 分支 | `auto` |
 | `imageRepoUrl` | 默认 `auto`，跟随源码仓库的 `images` 分支；独立仓库可填 URL，`?branch=` 指定分支。显式留空保留原 `image` 分支回退 | `auto` |
 | `siteUrl` | 站点域名，只填协议 + 域名，不要带子路径和结尾 `/`。用于 sitemap、RSS、canonical、版权链接。留空时会自动从托管平台环境变量识别 | `https://blog.alice.dev` |
 | `baseHref` | 站点部署的子路径。GitHub Pages 项目页为 `/<仓库名>/`（GitHub Actions 会自动设置），其他情况保持 `/` | `/` |
 
 ### 环境变量
+
+自动分支优先读取 `CF_PAGES_BRANCH`，再依次读取 GitHub 普通分支引用、Netlify `BRANCH`、Vercel `VERCEL_GIT_COMMIT_REF`、GitLab `CI_COMMIT_BRANCH` 和当前本地 Git 分支。标签和 GitHub PR 合并引用不自动作为写入分支；没有来源会停止构建，请显式配置 branch。仓库 URL 中的 `?branch=` 仍可指定实际 Git API 目标，页面会显示该目标分支。
 
 构建时以下环境变量优先于配置文件：
 

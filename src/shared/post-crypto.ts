@@ -25,8 +25,8 @@ export async function encryptPostBody(
   body: string,
   password: string,
 ): Promise<string> {
-  if (Array.from(password).length < 12)
-    throw new Error('加密密码至少需要 12 个字符，请使用较长的口令')
+  if (Array.from(password).length < 4)
+    throw new Error('文章加密密码至少需要 4 个字符')
   const source = await encryptText(body, password, FORMAT)
   parseEncryptedPayload(source)
   return source

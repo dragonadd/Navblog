@@ -6,8 +6,8 @@
 #   GitLab: https://gitlab.com/<用户名>/<仓库名>  (可选 ?projectId=123)
 gitRepoUrl: auto
 
-# 文章/设置所在分支（后台保存时提交到这个分支）
-branch: main
+# auto 跟随 CF/GitHub 等部署分支或当前本地分支；也可填写固定分支。
+branch: auto
 
 # auto 跟随博客仓库并使用 images 分支；也可填写独立仓库地址。
 # 图片存放仓库，?branch= 指定分支（不存在会自动创建空分支，仅 GitHub）

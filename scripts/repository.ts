@@ -13,6 +13,59 @@ export function readRepositoryOrigin(cwd: string): string {
   }
 }
 
+export function readRepositoryBranch(cwd: string): string {
+  try {
+    return execFileSync('git', ['branch', '--show-current'], {
+      cwd,
+      encoding: 'utf8',
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim()
+  } catch {
+    return ''
+  }
+}
+
+export function resolveBranch(
+  value: string,
+  env: NodeJS.ProcessEnv,
+  localBranch: string,
+): string {
+  value = value.trim()
+  const githubBranch =
+    env.GITHUB_REF_TYPE === 'tag' ||
+    env.GITHUB_EVENT_NAME?.startsWith('pull_request')
+      ? ''
+      : env.GITHUB_REF_NAME
+  const branch =
+    value === 'auto'
+      ? [
+          env.CF_PAGES_BRANCH,
+          githubBranch,
+          env.BRANCH,
+          env.VERCEL_GIT_COMMIT_REF,
+          env.CI_COMMIT_BRANCH,
+          localBranch,
+        ]
+          .find((v) => v?.trim())
+          ?.trim() || ''
+      : value
+  if (!branch) return ''
+  if (
+    branch === 'HEAD' ||
+    branch.startsWith('-') ||
+    /[\s\u0000-\u001f\u007f~^:?*\[\\]/.test(branch) ||
+    branch.includes('..') ||
+    branch.includes('@{') ||
+    branch.endsWith('.') ||
+    branch
+      .split('/')
+      .some((part) => !part || part.startsWith('.') || part.endsWith('.lock'))
+  )
+    throw new Error('提交分支名称无效，请填写实际 Git 分支或 auto')
+  return branch
+}
+
 function detectedRepository(value: string): string {
   try {
     const ssh = value.match(/^[^/@\s]+@([^:\s]+):(.+)$/)

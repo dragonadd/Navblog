@@ -59,7 +59,16 @@ test('错误密码、密文篡改、算法/版本/参数错误和短密码均拒
       /数据损坏/,
     )
   assert.throws(() => parseEncryptedPayload('普通正文'), /数据损坏/)
-  await assert.rejects(encryptPostBody('秘密', '短密码'), /12/)
+  await assert.rejects(encryptPostBody('秘密', '短密码'), /4/)
+})
+
+test('文章密码允许4位且保持原密文格式，3位拒绝，旧长密码仍可解密', async () => {
+  const source = await encryptPostBody('四位密码正文', '1234')
+  assert.equal(await decryptPostBody(source, '1234'), '四位密码正文')
+  assert.equal(parseEncryptedPayload(source).version, 1)
+  await assert.rejects(encryptPostBody('正文', '123'), /4/)
+  const old = await encryptPostBody('旧长密码正文', password)
+  assert.equal(await decryptPostBody(old, password), '旧长密码正文')
 })
 
 test('加密元数据只生成公开摘要，无字数/正文泄漏，缺标记和明文密码阻止发布', async () => {

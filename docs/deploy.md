@@ -30,7 +30,7 @@
 
 ```yaml
 gitRepoUrl: https://github.com/<你的用户名>/<你的仓库名>
-branch: main
+branch: auto
 imageRepoUrl: https://github.com/<你的用户名>/<你的仓库名>?branch=images
 ```
 
@@ -112,6 +112,8 @@ Netlify 会自动监听仓库提交并重新构建。
 请完整发布 `dist/browser`，确保 `_redirects`、`_headers`、HTML 和哈希命名的 JS/CSS 属于同一次构建。`_headers` 使首页和后台 HTML 重新校验缓存，认证文件保持 no-store；仓库地址修改后，先重新部署，再刷新后台并重新登录。Cloudflare 根域部署的 `baseHref` 保持 `/`。
 
 默认仓库配置为 auto，Fork 后从构建环境或 Git origin 识别副本。Cloudflare 构建环境缺少 Git origin 时，请在 YAML 中填写完整仓库 URL；识别失败会阻止构建，避免发布仍向原作者仓库请求的版本。其他托管平台可使用其仓库环境信息；用户手动填写的 URL 不会被自动覆盖。
+
+默认 `branch: auto` 使用 Cloudflare 的 `CF_PAGES_BRANCH`，因此 test 部署的后台也读写 test。将本次修复提交到你部署的 test 分支，再重新部署；用 Token 登录并重新设置该分支密码，等部署完成后再验证密码登录。若刻意让多个站点共用 main，可在 YAML 显式写 main。
 
 ---
 
