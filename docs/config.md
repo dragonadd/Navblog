@@ -44,7 +44,7 @@ PWA 本轮仅落地安装参数；未添加 Service Worker 或离线缓存，也
 | 字段 | 说明 | 示例 |
 | --- | --- | --- |
 | `gitRepoUrl` | 默认 `auto`，跟随当前 Fork；也可指定完整 GitHub / Gitee / GitLab URL，GitLab 可附加 `?projectId=123` | `auto` |
-| `branch` | 默认 `auto`，跟随部署分支或当前本地分支；也可固定为 main/test 等有效 Git 分支 | `auto` |
+| `branch` | 默认 `auto`，跟随托管平台选定的部署分支或当前本地分支；一般使用仓库主分支（通常为 `main`），也可自行指定其他有效分支 | `auto` |
 | `imageRepoUrl` | 默认 `auto`，跟随源码仓库的 `images` 分支；独立仓库可填 URL，`?branch=` 指定分支。显式留空保留原 `image` 分支回退 | `auto` |
 | `siteUrl` | 站点域名，只填协议 + 域名，不要带子路径和结尾 `/`。用于 sitemap、RSS、canonical、版权链接。留空时会自动从托管平台环境变量识别 | `https://blog.alice.dev` |
 | `baseHref` | 站点部署的子路径。GitHub Pages 项目页为 `/<仓库名>/`（GitHub Actions 会自动设置），其他情况保持 `/` | `/` |
@@ -241,7 +241,7 @@ Markdown 链接和图片仅允许 HTTP(S) 或站内路径，拒绝执行协议�
 | `gitHubCDN` | GitHub 图片使用的 jsDelivr 域名，如 `cdn.jsdelivr.net`、`gcore.jsdelivr.net`、`fastly.jsdelivr.net` |
 | `actionUrl` | 部署钩子地址，后台保存后自动请求 |
 
-不蒜子统计使用官方 `https://busuanzi.ibruce.info/busuanzi` JSONP 接口，由 Angular 接收并显示计数。完整刷新和站内换页会重新请求，目录锚点跳转不重复计数；无需另外注入 `busuanzi.pure.mini.js`。请求带时间戳，避免返回缓存的计数。加载时显示提示，接口异常或超过 10 秒会显示“访问统计暂不可用”，不会填充虚假的零计数。
+不蒜子统计使用官方 `https://busuanzi.ibruce.info/busuanzi` JSONP 接口，由 Angular 接收并显示计数。完整刷新和站内换页会重新请求，目录锚点跳转不重复计数；无需另外注入 `busuanzi.pure.mini.js`。请求带时间戳，避免返回缓存的计数。加载时显示提示，接口异常或超过 10 秒会显示“访问统计暂不可用”，可点击“重试”重新获取。失败原因记录在浏览器控制台，可据此区分超时、JSONP 回调异常和返回值异常；不会填充虚假的零计数，也不会在失败后自动反复请求造成额外计数。
 
 “访问次数”（PV）表示页面浏览量；“访客数”（UV）由不蒜子去重，刷新同一页面不一定增加访客数。不同域名通常分别统计；localhost 的数据不能作为线上站点的访问量。统计依赖外部服务，浏览器广告拦截、网络限制或第三方服务故障可能影响显示。
 

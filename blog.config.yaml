@@ -1,17 +1,20 @@
 # 博客基础配置（构建时读取，修改后需要重新构建）
 # auto 从托管环境或 Git origin 识别当前仓库，Fork 后自动跟随副本；也可填写完整 URL。
+# 常规 Git 集成部署保持 auto 即可；无仓库来源（如下载 ZIP）或指定另一仓库时才手动填写。
+# 构建会把真实仓库地址打包给后台；识别失败会停止构建，显式 URL 不会被自动覆盖。
 # 仓库地址：支持 GitHub / Gitee / GitLab
 #   GitHub: https://github.com/<用户名>/<仓库名>
 #   Gitee:  https://gitee.com/<用户名>/<仓库名>
 #   GitLab: https://gitlab.com/<用户名>/<仓库名>  (可选 ?projectId=123)
 gitRepoUrl: auto
 
-# auto 跟随 CF/GitHub 等部署分支或当前本地分支；也可填写固定分支。
+# 一般选择仓库主分支部署；auto 跟随托管平台选定的部署分支或当前本地分支。
+# 需要固定提交目标时，可填写自己的实际分支名。
 branch: auto
 
 # auto 跟随博客仓库并使用 images 分支；也可填写独立仓库地址。
 # 图片存放仓库，?branch= 指定分支（不存在会自动创建空分支，仅 GitHub）
-# 留空则使用 gitRepoUrl 的 image 分支
+# auto 使用 images 分支；留空则兼容旧配置，使用博客仓库的 image 分支。
 imageRepoUrl: auto
 
 # 站点正式访问地址（用于 sitemap / RSS / canonical / 版权链接），末尾不要带 /

@@ -65,6 +65,16 @@ import { BlogService } from '../services/blog.service'
               <span role="status">{{
                 statsFailed() ? '访问统计暂不可用' : '访问统计加载中…'
               }}</span>
+              @if (statsFailed()) {
+                <button
+                  type="button"
+                  class="fuwari-link"
+                  aria-label="重新获取访问统计"
+                  (click)="retryStats()"
+                >
+                  重试
+                </button>
+              }
             }
           }
           <a routerLink="/admin" class="fuwari-link" title="管理后台"
@@ -81,10 +91,9 @@ export class FooterComponent {
   readonly path = input('/')
   readonly stats = signal<{ pv: number; uv: number } | null>(null)
   readonly statsFailed = signal(false)
+  private readonly statsRetry = signal(0)
   private readonly http = inject(HttpClient)
-  private readonly statsEnabled = computed(
-    () => !!this.settings().busuanzi,
-  )
+  private readonly statsEnabled = computed(() => !!this.settings().busuanzi)
   private readonly page = computed(() => this.path().split('#')[0])
   private sanitizer = inject(DomSanitizer)
   readonly footerHtml = computed(() =>
@@ -99,6 +108,7 @@ export class FooterComponent {
   constructor() {
     effect((onCleanup) => {
       this.page()
+      this.statsRetry()
       this.stats.set(null)
       this.statsFailed.set(false)
       if (!this.statsEnabled()) return
@@ -122,12 +132,27 @@ export class FooterComponent {
               uv >= 0
             )
               this.stats.set({ pv, uv })
-            else this.statsFailed.set(true)
+            else {
+              console.warn('不蒜子返回的访问统计格式无效', {
+                site_pv: typeof pv,
+                site_uv: typeof uv,
+              })
+              this.statsFailed.set(true)
+            }
           },
-          error: () => this.statsFailed.set(true),
+          error: (error) => {
+            console.warn(
+              '不蒜子访问统计请求失败',
+              error?.error?.message || error?.message || '网络请求失败',
+            )
+            this.statsFailed.set(true)
+          },
         })
       onCleanup(() => request.unsubscribe())
     })
+  }
+  retryStats() {
+    this.statsRetry.update((attempt) => attempt + 1)
   }
   get yearText() {
     const now = new Date().getFullYear()

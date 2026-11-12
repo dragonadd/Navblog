@@ -49,7 +49,7 @@ Angular 21 + TypeScript + Tailwind CSS 4。功能与验收修复说明更新于 
 - Giscus 评论（随深色模式自动切换主题）
 - 主题色相调色盘（HEX 复制、固定色相）、深浅色（系统／固定／定时切换），访客可恢复站点默认外观
 - 侧栏便签公告（支持 Markdown、保留换行、可关闭）、最新文章、联系翻转卡片；每个桌面侧栏模块可选择左侧或右侧，支持双侧布局，手机保持单列；文章可全宽阅读
-- 不蒜子访问统计：支持站内换页计数、加载和失败提示；访客数由官方服务去重
+- 不蒜子访问统计：支持站内换页计数、加载和失败提示、手动重试；访客数由官方服务去重
 - 每日文字：多个接口来源独立按天缓存；自定义 `{date} {time} {weekday} {month} {day}` 变量，时间自动更新
 - 自定义 CSS、外部 CSS／JS、ICP备案与公安备案、RSS 开关及全文／摘要模式、PWA 安装参数
 - 响应式布局，手机端友好
@@ -126,7 +126,7 @@ git add . && git commit -m "init my blog" && git push
 1. 打开你的仓库 → **Settings** → 左侧 **Pages**。
 2. **Build and deployment → Source** 选择 **GitHub Actions**。
 3. 打开仓库 **Actions** 标签页，如果提示「Workflows aren't being run on this forked repository」，点击 **I understand my workflows, go ahead and enable them**。
-4. 在 Actions 里选择 **Deploy to GitHub Pages** → **Run workflow** 手动触发第一次部署（之后每次提交都会自动部署）。
+4. 在 Actions 里选择 **Deploy to GitHub Pages** → **Run workflow** 手动触发第一次部署（默认工作流之后监听 `main` 分支的提交）。使用其他分支时，按 [部署说明](./docs/deploy.md#1-github-pages) 调整工作流。
 5. 等待 1～2 分钟，绿色对勾后访问：
    - 仓库名为 `<用户名>.github.io` → `https://<用户名>.github.io/`
    - 其他仓库名 → `https://<用户名>.github.io/<仓库名>/`
@@ -205,7 +205,7 @@ Access Token 通常很长，不方便记忆，也容易忘记保存在什么地�
 
 在 **站点设置 → 登录密码管理** 输入并确认密码。密码至少 8 位且包含字母和数字；**为了安全性，建议使用 12 位以上的独有随机密码，或由密码管理器生成的长口令**。浏览器使用 PBKDF2-SHA-256 派生密钥，再用 AES-GCM 加密当前 Token，单独提交密文文件 `data/auth.json`。加密的是 Token，登录密码不直接保存到仓库。部署成功后显示密码登录 Tab；忘记密码或 Token 过期时，可使用有效的新 Token 登录并重新设置密码。
 
-凭证按仓库和分支绑定，保存位置以页面显示的提交分支为准。默认 `branch: auto` 跟随部署分支：Cloudflare 用 `test` 部署时，后台也写入 `test`。保存后需等待该分支部署完成；此前误写到 main 时，请将新版更新到 test，使用 Token 登录 test 站点并重新设置密码，旧 main 凭证不会自动迁移。
+一般使用仓库主分支（通常为 `main`）部署，也可自行选择其他分支。默认 `branch: auto` 跟随托管平台选定的部署分支，后台向该分支提交文章、设置和登录凭证。凭证按仓库和分支绑定，保存位置以页面显示的提交分支为准；保存后需等待该分支部署完成。更换部署分支后，如需密码登录，请在新站点用 Token 登录并重新设置密码。
 
 “移除密码”会删除当前文件并恢复 Token 登录，但 Git 历史、旧部署和他人已经下载的密文仍可能存在。需要撤销旧访问时，请在 Git 平台撤销或轮换 Token；删除文件不能代替撤销凭证。本地演示不管理真实登录凭证。
 
@@ -236,7 +236,7 @@ NavBlog 是纯静态项目，也可以从私有仓库构建部署。私有仓库
 
 ```yaml
 gitRepoUrl: auto                                          # 自动识别当前 Fork，也可填写完整 URL
-branch: auto                                              # 跟随部署分支，也可固定 main/test
+branch: auto                                              # 跟随所选部署分支，也可指定实际分支
 imageRepoUrl: auto                                        # 跟随博客仓库的 images 分支，也可填写独立 URL
 siteUrl: https://blog.example.com                           # 站点域名（不含子路径），留空则自动识别
 baseHref: /                                                 # 部署子路径，GitHub Pages 会自动识别

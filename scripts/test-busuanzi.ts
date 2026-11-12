@@ -1,6 +1,6 @@
 import '@angular/compiler'
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { beforeEach, test } from 'node:test'
 import {
   createEnvironmentInjector,
   signal,
@@ -12,6 +12,10 @@ import { DomSanitizer } from '@angular/platform-browser'
 import { Subject } from 'rxjs'
 import { BlogService } from '../src/app/services/blog.service'
 import { FooterComponent } from '../src/app/components/footer.component'
+
+beforeEach((t) => {
+  t.mock.method(console, 'warn', () => {})
+})
 
 function footer(enabled = true) {
   const settings = signal({ busuanzi: enabled })
@@ -127,6 +131,26 @@ test('无效返回值和网络失败显示不可用，合法零计数保留', ()
     f.flush()
     f.reply({ site_pv: 0, site_uv: 0 })
     assert.deepEqual(f.component.stats(), { pv: 0, uv: 0 })
+    assert.equal(f.component.statsFailed(), false)
+  } finally {
+    f.injector.destroy()
+  }
+})
+
+test('失败后允许手动重试，不自动重复计数，重试结果可恢复正常显示', () => {
+  const f = footer()
+  try {
+    f.flush()
+    f.requests[0].response.error(new Error('Temporary network failure'))
+    assert.equal(f.component.statsFailed(), true)
+    f.flush()
+    assert.equal(f.requests.length, 1)
+    f.component.retryStats()
+    f.flush()
+    assert.equal(f.requests.length, 2)
+    assert.equal(f.component.statsFailed(), false)
+    f.reply({ site_pv: 15, site_uv: 10 })
+    assert.deepEqual(f.component.stats(), { pv: 15, uv: 10 })
     assert.equal(f.component.statsFailed(), false)
   } finally {
     f.injector.destroy()
