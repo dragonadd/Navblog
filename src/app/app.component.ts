@@ -28,7 +28,7 @@ import {
   ],
   template: `
     <div id="theme-fuwari" class="fuwari-bg flex min-h-screen flex-col">
-      <app-header [wide]="wideLayout()" />
+      <app-header />
       @if (isAdmin()) {
         <main class="mx-auto w-full max-w-6xl flex-1 px-3 pt-4 pb-12 md:px-4">
           <router-outlet />
@@ -66,6 +66,7 @@ import {
               desktop() && !leftModules().length && rightModules().length
             "
             [class.fuwari-both-sidebars]="wideLayout()"
+            [class.fuwari-no-sidebar]="noSidebar()"
           >
             @if (!hideSidebar()) {
               @if (desktop()) {
@@ -168,6 +169,14 @@ export class AppComponent {
       this.desktop() &&
       !!this.leftModules().length &&
       !!this.rightModules().length,
+  )
+  readonly noSidebar = computed(
+    () =>
+      !this.isAdmin() &&
+      !this.hideSidebar() &&
+      this.desktop() &&
+      !this.leftModules().length &&
+      !this.rightModules().length,
   )
   readonly heroBg = computed(
     () => `url("${this.blog.url(this.settings().heroImage)}")`,

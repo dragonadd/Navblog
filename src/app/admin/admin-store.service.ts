@@ -143,6 +143,7 @@ export class AdminStore {
               /[/\\\u0000-\u001f\u007f]/.test(p.slug) ||
               typeof p.title !== 'string' ||
               typeof p.date !== 'string' ||
+              (p.hidden !== undefined && typeof p.hidden !== 'boolean') ||
               !Array.isArray(p.tags) ||
               p.tags.some((tag: unknown) => typeof tag !== 'string'),
           ) ||

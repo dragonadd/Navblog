@@ -158,7 +158,7 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
                 桌面侧栏模块位置
               </h3>
               <p class="fuwari-muted mb-3 text-xs">
-                每个模块可分别放在左侧或右侧，显示开关沿用下方主题设置。手机按原顺序显示一列；全宽文章隐藏全部侧栏。
+                每个模块可选择左侧、右侧或隐藏。此处只控制桌面，手机沿用下方显示开关和原顺序。桌面全部隐藏时文章居中并保持阅读宽度；全宽文章仍可使用完整宽度。
               </p>
               <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 @for (module of sidebarModules; track module.key) {
@@ -171,6 +171,7 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
                     >
                       <option value="left">左侧</option>
                       <option value="right">右侧</option>
+                      <option value="hidden">隐藏</option>
                     </select>
                   </label>
                 }
@@ -480,8 +481,9 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
             </div>
           </div>
           <p class="fuwari-muted mt-3 text-xs leading-relaxed">
-            在博客侧栏显示，支持 Markdown 粗体、斜体、链接和列表等格式，保留换行；原始
-            HTML 按文字显示。访客关闭后当前公告不再显示；修改标题、文本或链接后会重新显示。关闭记录只影响当前浏览器，禁止关闭时公告始终显示。{{
+            在博客侧栏显示，支持 Markdown
+            粗体、斜体、链接和列表等格式，保留换行；原始 HTML
+            按文字显示。访客关闭后当前公告不再显示；修改标题、文本或链接后会重新显示。关闭记录只影响当前浏览器，禁止关闭时公告始终显示。{{
               demo.active()
                 ? '本地演示保存后可直接预览。'
                 : '保存并重新部署后生效。'
@@ -986,6 +988,7 @@ export class SettingsPage {
     { key: 'showSummary', label: '列表显示摘要' },
     { key: 'showListTags', label: '列表显示标签' },
     { key: 'latestPosts', label: '侧栏最新文章' },
+    { key: 'sidebarMoments', label: '侧栏碎碎念' },
     { key: 'contactEnable', label: '显示联系卡片' },
     { key: 'contactFlip', label: '联系卡片翻转' },
     { key: 'sidebarCategories', label: '侧栏分类' },

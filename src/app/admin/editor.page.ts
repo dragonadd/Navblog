@@ -193,6 +193,13 @@ function now() {
               ><input
                 type="checkbox"
                 class="accent-[var(--fuwari-primary)]"
+                [(ngModel)]="hidden"
+              />隐藏文章（仅搜索和直链可见）</label
+            >
+            <label class="flex cursor-pointer items-center gap-2"
+              ><input
+                type="checkbox"
+                class="accent-[var(--fuwari-primary)]"
                 [(ngModel)]="comments"
               />允许评论</label
             >
@@ -323,6 +330,7 @@ export class EditorPage implements OnInit, OnDestroy {
   cover = ''
   pinned = false
   draft = false
+  hidden = false
   hideSidebar = false
   comments = true
   body = ''
@@ -365,6 +373,7 @@ export class EditorPage implements OnInit, OnDestroy {
       this.cover = m.cover || ''
       this.pinned = !!m.pinned
       this.draft = !!m.draft
+      this.hidden = !!m.hidden
       this.hideSidebar = !!m.hideSidebar
       this.comments = m.comments !== false
       this.encrypted = !!m.encrypted
@@ -481,6 +490,7 @@ export class EditorPage implements OnInit, OnDestroy {
       hideSidebar: this.hideSidebar || undefined,
       pinned: this.pinned,
       draft: this.draft,
+      hidden: this.hidden || undefined,
       comments: this.comments ? undefined : false,
     }
     if (oldSlug) meta.updated = now()

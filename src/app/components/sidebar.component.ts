@@ -6,6 +6,7 @@ import { TocComponent } from './toc.component'
 import { AnnouncementComponent } from './announcement.component'
 import { SIDEBAR_MODULES } from '../../shared/theme-settings'
 import type { SidebarModule } from '../../shared/types'
+import { formatMomentDate } from '../../shared/moments'
 
 @Component({
   selector: 'app-sidebar',
@@ -98,6 +99,33 @@ import type { SidebarModule } from '../../shared/types'
           }
         </section>
       }
+      @if (has('moments') && settings().sidebarMoments !== false) {
+        <section class="fuwari-card p-4" aria-label="最新碎碎念">
+          <h2 class="fuwari-section-title mb-3">碎碎念</h2>
+          @if (latestMoment(); as moment) {
+            <p
+              class="max-h-48 overflow-y-auto break-words whitespace-pre-line text-sm leading-7"
+            >
+              {{ moment.text }}
+            </p>
+            <time
+              class="fuwari-muted mt-2 block text-xs"
+              [attr.datetime]="moment.date"
+              >{{ momentDate(moment.date) }}</time
+            >
+          } @else {
+            <p class="fuwari-muted text-sm">暂无可显示的碎碎念。</p>
+          }
+          <a
+            routerLink="/moments"
+            class="fuwari-link mt-3 inline-flex items-center gap-2 text-sm"
+            >查看碎碎念<i
+              class="fas fa-arrow-right text-xs"
+              aria-hidden="true"
+            ></i
+          ></a>
+        </section>
+      }
       @if (has('contact')) {
         <app-contact-card />
       }
@@ -178,4 +206,14 @@ export class SidebarComponent {
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 6),
   )
+  readonly momentDate = formatMomentDate
+  readonly latestMoment = computed(() => {
+    // 演示保存会刷新 settings，触发重新读取本地动态。
+    this.settings()
+    try {
+      return this.blog.getMoments()[0]
+    } catch {
+      return undefined
+    }
+  })
 }

@@ -23,7 +23,8 @@ const config = readConfig()
 const settings = readSettings()
 const all = readPostFiles()
 const moments = readMoments()
-const posts = all.filter((p) => !p.meta.draft)
+const published = all.filter((p) => !p.meta.draft)
+const posts = published.filter((p) => !p.meta.hidden)
 const dist = PATHS.dist
 const auth = readAuth()
 if (auth) {
@@ -158,7 +159,7 @@ const nav =
   '</nav>'
 
 // ---------- 文章页 ----------
-for (const { meta, body } of posts) {
+for (const { meta, body } of published) {
   const html = meta.encrypted
     ? `<p class="encrypted-post">${escapeHtml(meta.summary || '')}</p><p>请启用 JavaScript 并输入密码阅读。</p>`
     : renderMarkdown(body).html
@@ -216,6 +217,7 @@ for (const { meta, body } of posts) {
       type: 'article',
       body: content,
       extraHead: [
+        meta.hidden ? '<meta name="robots" content="noindex" />' : '',
         `<meta property="article:published_time" content="${toDate(meta.date).toISOString()}" />`,
         ...meta.tags.map(
           (t) => `<meta property="article:tag" content="${escapeHtml(t)}" />`,
@@ -436,5 +438,5 @@ fs.writeFileSync(
 )
 
 console.log(
-  `[postbuild] 已生成 ${posts.length} 篇文章静态页、${totalPages} 个分页；RSS=${settings.rssEnable !== false}，PWA=${!!settings.pwaEnable}`,
+  `[postbuild] 已生成 ${published.length} 篇文章静态页、${totalPages} 个分页；RSS=${settings.rssEnable !== false}，PWA=${!!settings.pwaEnable}`,
 )

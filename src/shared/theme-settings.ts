@@ -12,6 +12,7 @@ export const SIDEBAR_MODULES = [
   { key: 'announcement', label: '公告' },
   { key: 'stats', label: '站点统计' },
   { key: 'latestPosts', label: '最新文章' },
+  { key: 'moments', label: '碎碎念' },
   { key: 'contact', label: '联系卡片' },
   { key: 'categories', label: '分类' },
   { key: 'tags', label: '标签' },
@@ -45,6 +46,7 @@ export const THEME_DEFAULTS: Partial<BlogSettings> = {
   showListTags: true,
   listMode: 'page',
   latestPosts: true,
+  sidebarMoments: true,
   contactEnable: false,
   contactFlip: true,
   contactTitle: '联系卡片',
@@ -112,6 +114,7 @@ export function availableSidebarModules(
     announcement: content.announcement,
     stats: settings.sidebarStats !== false,
     latestPosts: settings.latestPosts !== false,
+    moments: settings.sidebarMoments !== false,
     contact: !!settings.contactEnable,
     categories: settings.sidebarCategories !== false && content.categories,
     tags: settings.sidebarTags !== false && content.tags,
@@ -200,6 +203,7 @@ export function normalizeThemeSettings<T extends Partial<BlogSettings>>(
   }
   for (const key of [
     'sidebarReverse',
+    'sidebarMoments',
     'rssEnable',
     'rssFullContent',
     'pwaEnable',
@@ -227,8 +231,8 @@ export function normalizeThemeSettings<T extends Partial<BlogSettings>>(
   const positions = { ...s.sidebarPositions }
   for (const { key, label } of SIDEBAR_MODULES) {
     const side = positions[key] ?? (s.sidebarReverse ? 'right' : 'left')
-    if (side !== 'left' && side !== 'right')
-      throw new Error(`${label}位置只能选择左侧或右侧`)
+    if (!['left', 'right', 'hidden'].includes(side))
+      throw new Error(`${label}位置只能选择左侧、右侧或隐藏`)
     positions[key] = side
   }
   s.sidebarPositions = positions

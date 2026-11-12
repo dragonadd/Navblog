@@ -34,7 +34,12 @@ export class BlogService {
   readonly allPosts = signal<PostMeta[]>(
     this.demo.readJson('data/posts.json', postsJson as PostMeta[]),
   )
-  readonly posts = computed(() => this.allPosts().filter((p) => !p.draft))
+  readonly publishedPosts = computed(() =>
+    this.allPosts().filter((p) => !p.draft),
+  )
+  readonly posts = computed(() =>
+    this.publishedPosts().filter((p) => !p.hidden),
+  )
   readonly categories = computed(() =>
     taxonomy(
       this.posts()
@@ -79,7 +84,25 @@ export class BlogService {
   }
 
   findPost(slug: string): PostMeta | undefined {
-    return this.posts().find((p) => p.slug === slug)
+    return this.publishedPosts().find((p) => p.slug === slug)
+  }
+
+  searchPosts(query: string): PostMeta[] {
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    if (!words.length) return []
+    return this.publishedPosts().filter((post) => {
+      const text = (
+        post.encrypted
+          ? post.title
+          : [
+              post.title,
+              post.summary,
+              post.category,
+              ...(post.tags || []),
+            ].join(' ')
+      ).toLowerCase()
+      return words.every((word) => text.includes(word))
+    })
   }
 
   async fetchText(path: string): Promise<string> {

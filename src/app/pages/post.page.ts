@@ -283,7 +283,9 @@ export class PostPage implements OnDestroy {
   readonly index = computed(() =>
     this.blog.posts().findIndex((p) => p.slug === this.slug()),
   )
-  readonly prev = computed(() => this.blog.posts()[this.index() + 1])
+  readonly prev = computed(() =>
+    this.index() >= 0 ? this.blog.posts()[this.index() + 1] : undefined,
+  )
   readonly next = computed(() =>
     this.index() > 0 ? this.blog.posts()[this.index() - 1] : undefined,
   )

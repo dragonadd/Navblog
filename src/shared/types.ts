@@ -16,6 +16,8 @@ export interface PostMeta {
   summary?: string
   cover?: string
   draft?: boolean
+  /** 不进入公开列表，仍可由站内搜索和直接链接访问。 */
+  hidden?: boolean
   /** 置顶 */
   pinned?: boolean
   /** 关闭评论 */
@@ -55,11 +57,12 @@ export type SidebarModule =
   | 'announcement'
   | 'stats'
   | 'latestPosts'
+  | 'moments'
   | 'contact'
   | 'categories'
   | 'tags'
   | 'toc'
-export type SidebarSide = 'left' | 'right'
+export type SidebarSide = 'left' | 'right' | 'hidden'
 
 export interface GiscusConfig {
   enable: boolean
@@ -102,6 +105,7 @@ export interface BlogSettings {
   showListTags?: boolean
   listMode?: 'page' | 'scroll'
   latestPosts?: boolean
+  sidebarMoments?: boolean
   contactEnable?: boolean
   contactFlip?: boolean
   contactTitle?: string

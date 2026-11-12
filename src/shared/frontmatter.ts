@@ -100,6 +100,11 @@ export function normalizeMeta(
   if (encrypted) parseEncryptedPayload(body)
   else if (isEncryptedBody(body))
     throw new Error('密文正文缺少 encrypted: true 标记')
+  if (
+    data['hidden'] !== undefined &&
+    ![true, false, 'true', 'false'].includes(data['hidden'] as any)
+  )
+    throw new Error('文章 hidden 隐藏标记无效')
   const meta: PostMeta = {
     slug,
     title: toStr(data['title']) || slug,
@@ -116,6 +121,7 @@ export function normalizeMeta(
   const cover = toStr(data['cover'] ?? data['image'])
   if (cover) meta.cover = cover
   if (data['draft'] === true || data['draft'] === 'true') meta.draft = true
+  if (data['hidden'] === true || data['hidden'] === 'true') meta.hidden = true
   if (data['pinned'] === true || data['pinned'] === 'true') meta.pinned = true
   if (data['comments'] === false || data['comments'] === 'false') {
     meta.comments = false
@@ -147,6 +153,7 @@ export function stringifyPost(meta: PostMeta, body: string): string {
   if (meta.cover) data['cover'] = meta.cover
   if (meta.pinned) data['pinned'] = true
   if (meta.draft) data['draft'] = true
+  if (meta.hidden) data['hidden'] = true
   if (meta.comments === false) data['comments'] = false
   if (meta.hideSidebar) data['hideSidebar'] = true
   if (meta.encrypted) data['encrypted'] = true

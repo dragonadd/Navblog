@@ -4,7 +4,6 @@ import {
   HostListener,
   computed,
   inject,
-  input,
   signal,
 } from '@angular/core'
 import { Router, RouterLink, RouterLinkActive } from '@angular/router'
@@ -18,12 +17,9 @@ import { ThemeService } from '../services/theme.service'
   host: { class: 'sticky top-0 z-[60] block w-full shrink-0' },
   imports: [RouterLink, RouterLinkActive, FormsModule],
   template: `
-    <header
-      class="mx-auto w-full max-w-6xl px-3 md:px-4"
-      [class.fuwari-wide]="wide()"
-    >
+    <header class="mx-auto w-full max-w-6xl px-3 md:px-4">
       <nav
-        class="fuwari-navbar relative grid h-[60px] grid-cols-[minmax(0,1fr)_auto] items-center px-3 backdrop-blur-md md:px-5 lg:grid-cols-[auto_minmax(0,1fr)_auto]"
+        class="fuwari-navbar relative grid h-[60px] grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 backdrop-blur-md md:px-4 lg:grid-cols-[minmax(9rem,1fr)_minmax(0,auto)_minmax(9rem,1fr)]"
       >
         <a
           routerLink="/"
@@ -211,9 +207,11 @@ import { ThemeService } from '../services/theme.service'
                     class="block rounded-lg px-3 py-2 text-sm hover:bg-[var(--fuwari-primary-soft)]"
                   >
                     <div class="font-semibold">{{ p.title }}</div>
-                    <div class="fuwari-muted line-clamp-1 text-xs">
-                      {{ p.summary }}
-                    </div>
+                    @if (!p.encrypted) {
+                      <div class="fuwari-muted line-clamp-1 text-xs">
+                        {{ p.summary }}
+                      </div>
+                    }
                   </a>
                 }
               </div>
@@ -374,7 +372,6 @@ export class HeaderComponent {
   private escapeTarget: HTMLElement | null = null
   readonly theme = inject(ThemeService)
   readonly settings = this.blog.settings
-  readonly wide = input(false)
   readonly searchOpen = signal(false)
   readonly paletteOpen = signal(false)
   readonly mobileOpen = signal(false)
@@ -430,19 +427,9 @@ export class HeaderComponent {
     this.kw.set(v)
   }
 
-  readonly quickResults = computed(() => {
-    const k = this.kw().trim().toLowerCase()
-    if (!k) return []
-    return this.blog
-      .posts()
-      .filter((p) =>
-        [p.title, p.summary, p.category, ...(p.tags || [])]
-          .join(' ')
-          .toLowerCase()
-          .includes(k),
-      )
-      .slice(0, 8)
-  })
+  readonly quickResults = computed(() =>
+    this.blog.searchPosts(this.kw()).slice(0, 8),
+  )
 
   async copyColor() {
     try {

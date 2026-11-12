@@ -42,7 +42,7 @@ import { BlogService, formatDate } from '../services/blog.service'
                   ><i class="far fa-calendar-alt"></i></span
                 >{{ date(p.date) }}</a
               >
-              @if (p.category) {
+              @if (p.category && (!p.encrypted || !query().trim())) {
                 <a
                   [routerLink]="['/categories', p.category]"
                   class="fuwari-meta-item hover:text-[var(--fuwari-primary)]"
@@ -52,7 +52,11 @@ import { BlogService, formatDate } from '../services/blog.service'
                   >{{ p.category }}
                 </a>
               }
-              @if (blog.settings().showListTags !== false && p.tags.length) {
+              @if (
+                blog.settings().showListTags !== false &&
+                p.tags.length &&
+                (!p.encrypted || !query().trim())
+              ) {
                 <span class="fuwari-meta-item">
                   <span class="fuwari-meta-icon"
                     ><i class="fas fa-hashtag"></i
@@ -70,7 +74,11 @@ import { BlogService, formatDate } from '../services/blog.service'
                 </span>
               }
             </div>
-            @if (blog.settings().showSummary !== false && p.summary) {
+            @if (
+              blog.settings().showSummary !== false &&
+              p.summary &&
+              (!p.encrypted || !query().trim())
+            ) {
               <p class="fuwari-muted line-clamp-2 text-sm leading-7">
                 <app-highlight [text]="p.summary || ''" [query]="query()" />
               </p>

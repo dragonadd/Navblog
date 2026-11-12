@@ -98,6 +98,7 @@ function makeHeader(settings: any) {
         useValue: {
           settings: signal(settings),
           posts: signal([]),
+          publishedPosts: signal([]),
           url: (path: string) =>
             new URL(path.replace(/^\//, ''), 'https://example.test/blog/').href,
         },
@@ -125,18 +126,24 @@ test('旧侧栏方向迁移为各模块位置，显式覆盖生效且不修改�
     announcement: 'left',
     stats: 'left',
     latestPosts: 'left',
+    moments: 'left',
     contact: 'left',
     categories: 'left',
     tags: 'left',
     toc: 'left',
   }
-  assert.deepEqual(normalize({ sidebarReverse: false, sidebarPositions: undefined }).sidebarPositions, left)
+  assert.deepEqual(
+    normalize({ sidebarReverse: false, sidebarPositions: undefined })
+      .sidebarPositions,
+    left,
+  )
   const original = { sidebarReverse: true, sidebarPositions: { stats: 'left' } }
   assert.deepEqual(normalize(original).sidebarPositions, {
     profile: 'right',
     announcement: 'right',
     stats: 'left',
     latestPosts: 'right',
+    moments: 'right',
     contact: 'right',
     categories: 'right',
     tags: 'right',
@@ -151,6 +158,71 @@ test('旧侧栏方向迁移为各模块位置，显式覆盖生效且不修改�
     /位置|侧栏/,
   )
   assert.throws(() => normalize({ sidebarPositions: [] }), /位置|侧栏/)
+})
+
+test('桌面模块支持隐藏，全部隐藏时使用居中阅读布局，手机与全宽文章行为保留', () => {
+  const original = { profile: 'hidden', stats: 'hidden', contact: 'right' }
+  const normalized = normalize({ sidebarPositions: original })
+  assert.equal(normalized.sidebarPositions.profile, 'hidden')
+  assert.deepEqual(original, {
+    profile: 'hidden',
+    stats: 'hidden',
+    contact: 'right',
+  })
+  const settings = signal(
+    normalize({
+      sidebarPositions: Object.fromEntries(
+        Object.keys(normalized.sidebarPositions).map((key) => [key, 'hidden']),
+      ),
+      announcementEnable: true,
+      announcementText: '隐藏测试',
+      latestPosts: true,
+      contactEnable: true,
+    }),
+  )
+  const events = new Subject<any>()
+  const injector = createEnvironmentInjector(
+    [
+      {
+        provide: BlogService,
+        useValue: {
+          config: { baseHref: '/blog/' },
+          settings,
+          categories: signal([{ name: '分类', count: 1 }]),
+          tags: signal([{ name: '标签', count: 1 }]),
+          toc: signal([]),
+          findPost: () => ({ hideSidebar: true }),
+        },
+      },
+      { provide: ThemeService, useValue: {} },
+      { provide: Router, useValue: { events } },
+      {
+        provide: AnnouncementStateService,
+        useValue: { dismissed: signal('') },
+      },
+    ],
+    null as any,
+  )
+  try {
+    const app = injector.runInContext(() => new AppComponent()) as any
+    assert.deepEqual(app.leftModules(), [])
+    assert.deepEqual(app.rightModules(), [])
+    assert.equal(app.noSidebar(), true)
+    assert.equal(app.wideLayout(), false)
+    media.matches = false
+    mediaListeners.forEach((listener) => listener())
+    assert.equal(app.noSidebar(), false)
+    assert.ok(app.sidebarModules().includes('profile'))
+    assert.ok(app.sidebarModules().includes('announcement'))
+    media.matches = true
+    mediaListeners.forEach((listener) => listener())
+    events.next(new NavigationEnd(1, '/posts/full', '/posts/full'))
+    assert.equal(app.hideSidebar(), true)
+    assert.equal(app.noSidebar(), false)
+  } finally {
+    events.complete()
+    injector.destroy()
+  }
 })
 
 test('两级菜单清理空白并保留隐藏数据与分组，不修改原配置', () => {
@@ -346,6 +418,7 @@ test('实际布局分配模块，关闭唯一公告移除空栏，目录仅在�
       announcementClosable: true,
       sidebarStats: false,
       latestPosts: false,
+      sidebarMoments: false,
       contactEnable: false,
       sidebarCategories: false,
       sidebarTags: false,
@@ -431,7 +504,7 @@ test('设置保存保留无父链接的分组、隐藏菜单和独立侧栏位�
               JSON.stringify(
                 normalize({
                   menus: extraFixture,
-                  sidebarPositions: { stats: 'right' },
+                  sidebarPositions: { stats: 'right', profile: 'hidden' },
                 }),
               ),
             ),
@@ -469,6 +542,7 @@ test('设置保存保留无父链接的分组、隐藏菜单和独立侧栏位�
     assert.equal(saved.menus[0].children.length, 2)
     assert.equal(saved.menus[0].children[1].visible, false)
     assert.equal(saved.sidebarPositions.stats, 'right')
+    assert.equal(saved.sidebarPositions.profile, 'hidden')
   } finally {
     injector.destroy()
   }

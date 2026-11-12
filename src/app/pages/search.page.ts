@@ -57,16 +57,7 @@ export class SearchPage {
   private router = inject(Router)
   readonly q = input<string>('')
   readonly kw = signal('')
-  readonly results = computed(() => {
-    const words = this.kw().trim().toLowerCase().split(/\s+/).filter(Boolean)
-    if (!words.length) return []
-    return this.blog.posts().filter((p) => {
-      const text = [p.title, p.summary, p.category, ...(p.tags || [])]
-        .join(' ')
-        .toLowerCase()
-      return words.every((w) => text.includes(w))
-    })
-  })
+  readonly results = computed(() => this.blog.searchPosts(this.kw()))
   constructor() {
     this.blog.setTitle('搜索')
     effect(() => this.kw.set(this.q() || ''))

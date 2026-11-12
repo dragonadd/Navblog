@@ -71,6 +71,11 @@ import { LocalDemoService } from '../services/local-demo.service'
                       >加密</span
                     >
                   }
+                  @if (p.hidden) {
+                    <span class="fuwari-chip ml-2 !px-2 !py-0 text-xs"
+                      >隐藏</span
+                    >
+                  }
                   @if (p.draft) {
                     <span
                       class="ml-2 rounded-full bg-orange-500/15 px-2 text-xs text-orange-500"

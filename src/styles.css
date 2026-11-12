@@ -1022,6 +1022,10 @@ app-sidebar .group:hover img {
 }
 
 @media (min-width: 1024px) {
+  .fuwari-no-sidebar > .fuwari-content-column {
+    width: calc(100% - 280px - 1.5rem);
+    margin-inline: auto;
+  }
   .fuwari-with-sidebar {
     grid-template-columns: 280px minmax(0, 1fr);
   }
