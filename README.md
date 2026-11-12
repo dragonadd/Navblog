@@ -6,9 +6,7 @@
 
 Fuwari 风格主题 · Markdown 文章 · Git 仓库即数据库 · 零服务器 · 零数据库
 
-Angular 21 + TypeScript + Tailwind CSS 4。功能与验收修复说明更新于 **2026-11-11**。
-
-本轮发布过滤、保存冲突、登录竞态与手机交互的修复及验证见 [验收修复记录](./docs/acceptance-fixes.md)。
+使用 Angular 21、TypeScript 和 Tailwind CSS 4 构建。
 
 [功能](#-功能) · [快速开始](#-快速开始) · [部署教程](#-部署教程) · [后台使用](#-后台使用) · [配置](#-配置说明) · [常见问题](#-常见问题)
 
@@ -301,7 +299,7 @@ public/                 静态资源（favicon、默认头像等），原样复�
 scripts/                构建脚本（prepare / postbuild / preview / new-post / init）
 src/app/                前台页面与组件；src/app/admin 为后台
 src/shared/             文章解析、加密、动态校验、主题与每日文字等共用模块
-docs/                   详细文档
+docs/                   部署、配置、后台使用与功能说明
 ```
 
 ## ❓ 常见问题

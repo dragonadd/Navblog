@@ -4,7 +4,7 @@
 
 ## 开发环境
 
-- Node.js ≥ 20（推荐 22）
+- Node.js 22.12 或更新的 22 LTS，或 Node.js 24
 - pnpm 10
 
 ```bash
@@ -34,11 +34,28 @@ pnpm start          # http://localhost:7002
 - 样式优先使用 Tailwind 工具类；可复用的主题样式写在 `src/styles.css` 的 `@layer components` 中，类名以 `fuwari-` 开头。
 - 颜色使用 CSS 变量（`var(--fuwari-primary)` 等），保证深色模式与调色盘正常工作。
 - 前台与构建脚本共用的逻辑放到 `src/shared`，不要依赖浏览器或 Node 专有 API。
+- 面向使用者的文档介绍功能和操作；个人验收记录、实施计划和开发日志放在仓库之外。
 - 提交 PR 前运行 `pnpm run build` 确认构建通过，并请**不要提交**你自己的文章与设置。
 
 ## 提交信息
 
 推荐使用 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/)：`feat: ...`、`fix: ...`、`docs: ...`。
+
+## 检查改动
+
+提交前运行 `pnpm run build`，并按修改范围执行 `scripts/test-*.ts` 中的相关测试。例如：
+
+| 范围 | 命令 |
+| --- | --- |
+| 登录与凭证 | `pnpm exec tsx scripts/test-admin-auth.ts`、`pnpm exec tsx scripts/test-auth-service.ts`、`pnpm exec tsx scripts/test-auth-ui.ts` |
+| 文章加密 | `pnpm exec tsx scripts/test-post-crypto.ts` |
+| 碎碎念 | `pnpm exec tsx scripts/test-moments.ts`、`pnpm exec tsx scripts/test-moments-git.ts` |
+| 导航与侧栏 | `pnpm exec tsx scripts/test-navigation-layout.ts` |
+| 外观与站点输出 | `pnpm exec tsx scripts/test-site-options.ts`、`pnpm exec tsx scripts/test-site-output.ts` |
+
+涉及发布产物时，可运行对应的 `test-*-build.ts` 脚本。这些脚本会临时创建测试内容并执行构建，请在没有其他构建任务同时运行时执行；结束后会恢复项目数据。
+
+界面改动还需检查手机和桌面、浅色和深色模式。测试使用模拟凭证，请勿将真实 Token、个人数据或本机开发记录提交到仓库。
 
 ## 许可
 

@@ -32,7 +32,7 @@ Token 只保存在当前标签页的 `sessionStorage`，同时供运行时内存
 
 “移除密码”需页内确认，删除仓库中的 `data/auth.json`。提交成功提示：已提交，正在部署，请等待 1–2 分钟；部署成功后刷新页面生效。提交成功不等于部署已成功，时间戳也不能绕过尚未完成的部署。
 
-本地演示模式不管理真实登录凭证；需要退出演示并使用 Token 登录。演示导出不包含当前会话 Token。单元测试使用测试凭证和内存 Git API，不提交真实凭证。
+本地演示模式不管理真实登录凭证；需要退出演示并使用 Token 登录。演示导出不包含当前会话 Token。
 
 ## 静态部署
 
@@ -51,12 +51,5 @@ Token 只保存在当前标签页的 `sessionStorage`，同时供运行时内存
 删除或换密码不会消除 Git 历史、旧部署和已下载的密文，也不会撤销其中的 Token。需要撤销旧密码访问能力时，先在 Git 平台撤销/轮换专用 Token，再用新 Token 登录、重新设置密码。建议只授权博客仓库、设置到期时间，并保留 Token 兜底。
 
 `sessionStorage` 无法抵挡同源恶意脚本。自定义脚本、head HTML 和所有能在页面执行的代码都应可信；密码管理及登录使用 HTTPS 或 localhost。不要把真实 Token 粘到正文、普通设置、日志或演示文件中。
-
-## 验证命令
-
-- `pnpm exec tsx scripts/test-admin-auth.ts`：密码规则、加密隔离、会话迁移/取消/存储受限。
-- `pnpm exec tsx scripts/test-auth-service.ts`：请求防缓存、错误分支、设置和移除密文。
-- `pnpm exec tsx scripts/test-auth-ui.ts`：默认 Tab、统一校验、密码强度及提交失败提示。
-- `pnpm exec tsx scripts/test-auth-build.ts`：临时测试密文构建、公开输出无 Token/密码、明文拒绝、移除后清理；结束后恢复正式构建。
 
 文章加密最少 4 个字符；后台登录密码仍最少 8 个字符且包含字母数字，两项校验相互独立。

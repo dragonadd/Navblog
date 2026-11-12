@@ -1,10 +1,8 @@
 # 配置说明
 
-验收修复（2026-11-11）：手机与桌面使用相同菜单开关；动态日期锚点留在 `/moments`；仅首段 `/admin` 使用后台布局。生成标题/摘要保留字面美元符号，草稿不打包到公开数据。详见 [验收修复记录](acceptance-fixes.md)。
+后台登录密码通过“登录密码管理”单独生成并提交 `data/auth.json`，不保存在 `data/settings.json` 中；文件只存加密 Token。登录会话使用 `sessionStorage`，详见 [后台认证](authentication.md)。
 
-后台登录密码不在 `data/settings.json` 配置，而是通过“登录密码管理”单独生成并提交 `data/auth.json`；文件只存加密 Token。Token 会话改为 sessionStorage，详见 [后台认证](authentication.md)。
-
-## 新增站点配置（2026-11-10）
+## 外观与站点功能
 
 以下字段位于 `data/settings.json`，在后台“站点设置”中编辑。正式站点重新构建后生效；本地演示的主题、布局及页脚可即时预览，RSS 和 manifest 仍以构建文件为准。
 
@@ -27,15 +25,13 @@
 
 访客手动深浅色选择优先；顶栏“恢复站点默认外观”清除这个偏好，恢复系统或定时判断。系统变化、页面唤醒和最长 30 秒轮询更新自动模式；存储被禁用时仍能使用当前页面主题。
 
-PWA 本轮仅落地安装参数；未添加 Service Worker 或离线缓存，也不保证所有浏览器会展示安装按钮。安装图标只支持本地 PNG，不在构建时下载远程图标。`baseHref` 会写入 manifest 的 scope、start_url 和安装图标 URL。`headHtml` 中手写的其他标签仍由管理员自行管理。
-
-验证：`scripts/test-site-options.ts`、`scripts/test-site-output.ts`、`scripts/test-site-build.ts`；全套 61 项测试与 RSS/PWA 开关、子路径、加密泄漏扫描两组真实构建通过。浏览器验证主题/手动恢复、RSS 入口、备案、侧栏反转、手机顺序和全宽。
+PWA 支持安装参数配置，不提供 Service Worker 或离线缓存；安装按钮是否显示由浏览器决定。安装图标只支持本地 PNG，不在构建时下载远程图标。`baseHref` 会写入 manifest 的 scope、start_url 和安装图标 URL。`headHtml` 中手写的其他标签仍由管理员自行管理。
 
 ## blog.config.yaml
 
 构建时读取，修改后需要重新构建（提交到仓库即可自动构建）。
 
-读取链路是 `blog.config.yaml` → `scripts/lib.ts` 的 `readConfig()` → `scripts/prepare.ts` 生成 `src/generated/config.json` → `BlogService.config` → `GitService.parseRepo()`。API 地址按解析后的 owner/repo 拼接；不会从浏览器实时读取 YAML。请使用包含准备步骤的 `pnpm run build`，然后重新部署和登录。当前默认使用 `auto`，本地 Git origin 已指向 `dragonadd/Navblog`。
+`pnpm run build` 将 `blog.config.yaml` 解析为 `src/generated/config.json` 并打包给前端，后台根据解析出的仓库地址和分支调用 Git API。浏览器不会实时读取 YAML；修改配置后需要重新构建、部署，再登录后台。仓库和分支默认使用 `auto`，跟随部署来源。
 
 `auto` 优先使用 GitHub Actions 的仓库信息，其次是 Netlify `REPOSITORY_URL`、Vercel GitHub 仓库信息、GitLab CI 的项目 URL，最后读取 Git `origin`。自动识别支持 github.com、gitee.com、gitlab.com，远程 URL 中的凭据不会写入公开配置。自托管 GitLab或特殊命名空间请填写完整 URL，必要时附加 `projectId`。显式 URL 始终优先；不能含登录凭据，查询参数只支持 `branch` 和 `projectId`。
 
@@ -212,7 +208,7 @@ Markdown 链接和图片仅允许 HTTP(S) 或站内路径，拒绝执行协议�
 
 额外菜单的 `visible` 默认 true，`blank` 控制新窗口，`children` 是二级菜单数组。父菜单有链接时保留链接和独立展开按钮；没有链接时必须至少有一个子项。父子项均可隐藏，数据不会被删除；全部子项隐藏且父链接为空时不显示该分组。支持 HTTP(S)、站内路径、mailto 和 tel；保存时校验链接，拒绝凭据、危险协议和非空第三层菜单。站内链接按部署 baseHref 解析。顶栏保持 60px 吸顶，菜单过多时在中间区域横向滚动，手机下拉区域可纵向滚动。
 
-侧栏位置示例：`"sidebarPositions": { "profile": "left", "announcement": "right", "stats": "right", "toc": "right" }`。未指定模块沿用旧 `sidebarReverse`，旧设置读取后获得逐模块默认值。关闭的模块和首页尚无目录时不占用空栏；手机每个模块只渲染一次。配置与保存回归见 `scripts/test-navigation-layout.ts`。
+侧栏位置示例：`"sidebarPositions": { "profile": "left", "announcement": "right", "stats": "right", "toc": "right" }`。未指定模块沿用旧 `sidebarReverse`，旧设置读取后获得逐模块默认值。关闭的模块和首页尚无目录时不占用空栏；手机每个模块只渲染一次。
 
 ### Giscus 评论
 
