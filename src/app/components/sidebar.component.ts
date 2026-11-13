@@ -4,6 +4,7 @@ import { BlogService } from '../services/blog.service'
 import { ContactCardComponent } from './contact-card.component'
 import { TocComponent } from './toc.component'
 import { AnnouncementComponent } from './announcement.component'
+import { BlogInfoComponent } from './blog-info.component'
 import { SIDEBAR_MODULES } from '../../shared/theme-settings'
 import type { SidebarModule } from '../../shared/types'
 import { formatMomentDate } from '../../shared/moments'
@@ -15,6 +16,7 @@ import { formatMomentDate } from '../../shared/moments'
     TocComponent,
     ContactCardComponent,
     AnnouncementComponent,
+    BlogInfoComponent,
   ],
   template: `
     <div class="flex flex-col gap-4">
@@ -125,6 +127,9 @@ import { formatMomentDate } from '../../shared/moments'
             ></i
           ></a>
         </section>
+      }
+      @if (has('blogInfo') && settings().sidebarBlogInfo) {
+        <app-blog-info />
       }
       @if (has('contact')) {
         <app-contact-card />

@@ -11,8 +11,9 @@
 | `appearance` | `system`（默认，跟随系统）、`light`、`dark`、`auto`（按时段） |
 | `darkStart` / `darkEnd` | 0–23 整数小时，默认 22 / 7；开始包含，结束不包含；支持跨午夜，同起止表示全天浅色。按访客浏览器本地时间判断 |
 | `sidebarReverse` | 兼容旧配置，默认 false；仅作为未设置模块位置时的默认方向，新配置使用 sidebarPositions |
-| `sidebarPositions` | 桌面模块选择 left / right / hidden；支持 profile、announcement、stats、latestPosts、moments、contact、categories、tags、toc。左右都有可见模块时显示三栏，全部隐藏时文章居中并保持常规阅读宽度；手机沿用模块开关和原顺序单列 |
+| `sidebarPositions` | 桌面模块选择 left / right / hidden；支持 profile、announcement、stats、latestPosts、moments、blogInfo、contact、categories、tags、toc。左右都有可见模块时显示三栏，全部隐藏时文章居中并保持常规阅读宽度；手机沿用模块开关和原顺序单列 |
 | `sidebarMoments` | 默认 true，侧栏显示最新发布的一条碎碎念和时间；“查看碎碎念”进入时间线。关闭后手机和桌面都不显示 |
+| `sidebarBlogInfo` | 缺省 false，博客信息模块开关；关闭后手机和桌面都不显示。旧设置文件不会继承已部署的新模块开关 |
 | `beiAn` / `beiAnLink` | ICP 备案号及 HTTP(S) 查询链接；未填不显示，链接默认工信部查询网站 |
 | `beiAnGongan` | 公安备案文字；提取其中的备案数字生成官方查询链接，无数字时链接到查询首页 |
 | `rssEnable` | 默认 true；关闭后构建不输出 rss.xml，HTML 订阅头及侧栏本站 RSS 链接也隐藏 |
@@ -86,6 +87,23 @@ PWA 支持安装参数配置，不提供 Service Worker 或离线缓存；安装
 | `themeFixed` | 为 `true` 时隐藏调色盘，固定使用默认色相 |
 | `postsPerPage` | 每页文章数 |
 | `showCover` | 文章列表是否显示封面图 |
+
+### 博客信息
+
+在后台 **站点设置 → 博客信息** 配置，使用现有主题卡片显示文章数目、评论数目、运行天数和最后活动。通过 `sidebarPositions.blogInfo` 选择桌面左侧、右侧或隐藏；手机使用 `sidebarBlogInfo` 开关和原有单列顺序。
+
+| 字段 | 说明 |
+| --- | --- |
+| `sidebarBlogInfo` | 模块开关，缺省 false，兼容旧配置 |
+| `blogStartDate` | 运行起始日期，格式 `YYYY-MM-DD`，独立于版权年份 `since`；留空显示“未配置”，未来日期显示“尚未开始” |
+| `blogCommentCount` | 已核实的本站公开评论（含回复）手动快照，只接受非负安全整数；`null` 或未填写表示未配置，`0` 表示已核实没有评论 |
+| `blogCommentCountDate` | 快照核实日期，格式 `YYYY-MM-DD`；与评论总数同时填写或同时留空 |
+
+文章数与公开列表使用相同口径，包含公开加密文章，排除草稿和隐藏文章。最后活动取公开文章和碎碎念的发布时间、更新时间中的最新已发生时间；内容日期格式异常或碎碎念数据无法读取时显示“不可用”，空站点显示“暂无活动”。带时区 ISO 时间转换为访客本地时间，无时区的文章日期时间按访客本地时间解释。日期显示精确到日，悬停可查看完整时间。
+
+运行天数按访客本地日历日期相减，起始当天为 0 天，不受夏令时的 23/25 小时影响。页面打开时每分钟检查日期，标签页唤醒时立即更新。
+
+现有 Giscus 集成只加载单篇文章评论，没有全站汇总数据；本模块不请求 Git API 或使用前台 Token。未填快照时明确显示“未配置”；填写后标注手动快照及核实日期，不随新增评论自动变化。请核实本站对应的公开评论（含回复）后更新快照，重新构建部署即可生效。
 
 ### 今日一言
 
@@ -234,13 +252,8 @@ Markdown 链接和图片仅允许 HTTP(S) 或站内路径，拒绝执行协议�
 | `license` / `licenseUrl` | 文章底部版权卡片中的许可协议 |
 | `footerHtml` | 页脚自定义 HTML |
 | `headHtml` | 注入到 `<head>` 的 HTML，例如统计代码（重新构建后生效） |
-| `busuanzi` | 是否启用不蒜子访问统计 |
 | `gitHubCDN` | GitHub 图片使用的 jsDelivr 域名，如 `cdn.jsdelivr.net`、`gcore.jsdelivr.net`、`fastly.jsdelivr.net` |
 | `actionUrl` | 部署钩子地址，后台保存后自动请求 |
-
-不蒜子统计使用官方 `https://busuanzi.ibruce.info/busuanzi` JSONP 接口，由 Angular 接收并显示计数。完整刷新和站内换页会重新请求，目录锚点跳转不重复计数；无需另外注入 `busuanzi.pure.mini.js`。请求带时间戳，避免返回缓存的计数。加载时显示提示，接口异常或超过 10 秒会显示“访问统计暂不可用”，可点击“重试”重新获取。失败原因记录在浏览器控制台，可据此区分超时、JSONP 回调异常和返回值异常；不会填充虚假的零计数，也不会在失败后自动反复请求造成额外计数。
-
-“访问次数”（PV）表示页面浏览量；“访客数”（UV）由不蒜子去重，刷新同一页面不一定增加访客数。不同域名通常分别统计；localhost 的数据不能作为线上站点的访问量。统计依赖外部服务，浏览器广告拦截、网络限制或第三方服务故障可能影响显示。
 
 ## 文章 front matter
 

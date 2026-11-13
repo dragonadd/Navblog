@@ -6,6 +6,7 @@ import type {
   SidebarSide,
 } from './types'
 import { normalizeResourceUrl } from './custom-resources'
+import { normalizeBlogInfoSettings } from './blog-info'
 
 export const SIDEBAR_MODULES = [
   { key: 'profile', label: '个人资料' },
@@ -13,6 +14,7 @@ export const SIDEBAR_MODULES = [
   { key: 'stats', label: '站点统计' },
   { key: 'latestPosts', label: '最新文章' },
   { key: 'moments', label: '碎碎念' },
+  { key: 'blogInfo', label: '博客信息' },
   { key: 'contact', label: '联系卡片' },
   { key: 'categories', label: '分类' },
   { key: 'tags', label: '标签' },
@@ -61,6 +63,10 @@ export const THEME_DEFAULTS: Partial<BlogSettings> = {
   sidebarCategories: true,
   sidebarTags: true,
   sidebarStats: true,
+  sidebarBlogInfo: false,
+  blogStartDate: '',
+  blogCommentCount: null,
+  blogCommentCountDate: '',
   articleToc: true,
   floatComment: true,
   floatDark: true,
@@ -96,8 +102,14 @@ export function mergeThemeSettings(
   incoming: Partial<BlogSettings> | null,
 ): BlogSettings {
   if (!incoming) return { ...base }
-  // 已部署的默认位置不能盖过旧文件中的整体侧栏方向。
-  return { ...base, ...incoming, sidebarPositions: incoming.sidebarPositions }
+  // 旧文件沿用整体侧栏方向，新模块保持缺省关闭。
+  return {
+    ...base,
+    ...incoming,
+    sidebarPositions: incoming.sidebarPositions,
+    sidebarBlogInfo:
+      incoming.sidebarBlogInfo === undefined ? false : incoming.sidebarBlogInfo,
+  }
 }
 
 export function availableSidebarModules(
@@ -115,6 +127,7 @@ export function availableSidebarModules(
     stats: settings.sidebarStats !== false,
     latestPosts: settings.latestPosts !== false,
     moments: settings.sidebarMoments !== false,
+    blogInfo: !!settings.sidebarBlogInfo,
     contact: !!settings.contactEnable,
     categories: settings.sidebarCategories !== false && content.categories,
     tags: settings.sidebarTags !== false && content.tags,
@@ -204,6 +217,7 @@ export function normalizeThemeSettings<T extends Partial<BlogSettings>>(
   for (const key of [
     'sidebarReverse',
     'sidebarMoments',
+    'sidebarBlogInfo',
     'rssEnable',
     'rssFullContent',
     'pwaEnable',
@@ -236,6 +250,7 @@ export function normalizeThemeSettings<T extends Partial<BlogSettings>>(
     positions[key] = side
   }
   s.sidebarPositions = positions
+  Object.assign(s, normalizeBlogInfoSettings(s))
   s.menus = normalizeMenus(s.menus)
   for (const key of [
     'beiAn',

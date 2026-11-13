@@ -101,7 +101,7 @@ import {
           </div>
         </main>
       }
-      <app-footer [path]="url()" />
+      <app-footer />
       @if (!isAdmin()) {
         <app-float-buttons />
       }

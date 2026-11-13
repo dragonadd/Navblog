@@ -1,15 +1,6 @@
-import {
-  Component,
-  computed,
-  effect,
-  inject,
-  input,
-  signal,
-} from '@angular/core'
-import { HttpClient } from '@angular/common/http'
+import { Component, computed, inject } from '@angular/core'
 import { DomSanitizer } from '@angular/platform-browser'
 import { RouterLink } from '@angular/router'
-import { timeout } from 'rxjs'
 import { BlogService } from '../services/blog.service'
 
 @Component({
@@ -49,34 +40,6 @@ import { BlogService } from '../services/blog.service'
         <div
           class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs"
         >
-          @if (settings().busuanzi) {
-            @if (stats(); as counts) {
-              <span id="busuanzi_container_site_pv"
-                ><i class="far fa-eye mr-1"></i>访问
-                <span id="busuanzi_value_site_pv">{{ counts.pv }}</span>
-                次</span
-              >
-              <span id="busuanzi_container_site_uv"
-                ><i class="far fa-user mr-1"></i>访客
-                <span id="busuanzi_value_site_uv">{{ counts.uv }}</span>
-                人</span
-              >
-            } @else {
-              <span role="status">{{
-                statsFailed() ? '访问统计暂不可用' : '访问统计加载中…'
-              }}</span>
-              @if (statsFailed()) {
-                <button
-                  type="button"
-                  class="fuwari-link"
-                  aria-label="重新获取访问统计"
-                  (click)="retryStats()"
-                >
-                  重试
-                </button>
-              }
-            }
-          }
           <a routerLink="/admin" class="fuwari-link" title="管理后台"
             ><i class="fas fa-pen-nib"></i
           ></a>
@@ -88,13 +51,6 @@ import { BlogService } from '../services/blog.service'
 export class FooterComponent {
   readonly blog = inject(BlogService)
   readonly settings = this.blog.settings
-  readonly path = input('/')
-  readonly stats = signal<{ pv: number; uv: number } | null>(null)
-  readonly statsFailed = signal(false)
-  private readonly statsRetry = signal(0)
-  private readonly http = inject(HttpClient)
-  private readonly statsEnabled = computed(() => !!this.settings().busuanzi)
-  private readonly page = computed(() => this.path().split('#')[0])
   private sanitizer = inject(DomSanitizer)
   readonly footerHtml = computed(() =>
     this.sanitizer.bypassSecurityTrustHtml(this.settings().footerHtml || ''),
@@ -105,55 +61,6 @@ export class FooterComponent {
       ? `https://beian.mps.gov.cn/#/query/webSearch?code=${code}`
       : 'https://beian.mps.gov.cn/'
   })
-  constructor() {
-    effect((onCleanup) => {
-      this.page()
-      this.statsRetry()
-      this.stats.set(null)
-      this.statsFailed.set(false)
-      if (!this.statsEnabled()) return
-      // Angular 接收统计值，不依赖外部脚本寻找尚未渲染的页脚节点。
-      const request = this.http
-        .jsonp<{ site_pv: unknown; site_uv: unknown } | null>(
-          `https://busuanzi.ibruce.info/busuanzi?t=${Date.now()}`,
-          'jsonpCallback',
-        )
-        .pipe(timeout(10000))
-        .subscribe({
-          next: (data) => {
-            const pv = data?.site_pv,
-              uv = data?.site_uv
-            if (
-              typeof pv === 'number' &&
-              typeof uv === 'number' &&
-              Number.isSafeInteger(pv) &&
-              pv >= 0 &&
-              Number.isSafeInteger(uv) &&
-              uv >= 0
-            )
-              this.stats.set({ pv, uv })
-            else {
-              console.warn('不蒜子返回的访问统计格式无效', {
-                site_pv: typeof pv,
-                site_uv: typeof uv,
-              })
-              this.statsFailed.set(true)
-            }
-          },
-          error: (error) => {
-            console.warn(
-              '不蒜子访问统计请求失败',
-              error?.error?.message || error?.message || '网络请求失败',
-            )
-            this.statsFailed.set(true)
-          },
-        })
-      onCleanup(() => request.unsubscribe())
-    })
-  }
-  retryStats() {
-    this.statsRetry.update((attempt) => attempt + 1)
-  }
   get yearText() {
     const now = new Date().getFullYear()
     const since = Number(this.settings().since) || now

@@ -58,6 +58,7 @@ export type SidebarModule =
   | 'stats'
   | 'latestPosts'
   | 'moments'
+  | 'blogInfo'
   | 'contact'
   | 'categories'
   | 'tags'
@@ -120,6 +121,12 @@ export interface BlogSettings {
   sidebarCategories?: boolean
   sidebarTags?: boolean
   sidebarStats?: boolean
+  sidebarBlogInfo?: boolean
+  /** 运行天数的起始日期 YYYY-MM-DD；留空不推断日期。 */
+  blogStartDate?: string
+  /** 已核实的公开评论（含回复）手动快照；null 表示未配置。 */
+  blogCommentCount?: number | null
+  blogCommentCountDate?: string
   articleToc?: boolean
   floatComment?: boolean
   floatDark?: boolean
@@ -190,8 +197,6 @@ export interface BlogSettings {
   customExternalCss?: string[]
   customJsEnable?: boolean
   customExternalJs?: string[]
-  /** 不蒜子访问统计 */
-  busuanzi: boolean
   /** jsDelivr 等 GitHub CDN 域名 */
   gitHubCDN: string
   /** 保存后请求的部署钩子 URL（如 Vercel/Netlify/Cloudflare Deploy Hook） */

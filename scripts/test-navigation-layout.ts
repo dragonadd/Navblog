@@ -127,6 +127,7 @@ test('旧侧栏方向迁移为各模块位置，显式覆盖生效且不修改�
     stats: 'left',
     latestPosts: 'left',
     moments: 'left',
+    blogInfo: 'left',
     contact: 'left',
     categories: 'left',
     tags: 'left',
@@ -144,6 +145,7 @@ test('旧侧栏方向迁移为各模块位置，显式覆盖生效且不修改�
     stats: 'left',
     latestPosts: 'right',
     moments: 'right',
+    blogInfo: 'right',
     contact: 'right',
     categories: 'right',
     tags: 'right',
@@ -406,7 +408,6 @@ test('二级菜单展开保持手机外层菜单，外部点击和Escape关闭�
 test('实际布局分配模块，关闭唯一公告移除空栏，目录仅在文章中占位，视口监听会清理', () => {
   const settings = signal(
     normalize({
-      busuanzi: false,
       sidebarPositions: {
         profile: 'right',
         announcement: 'left',
@@ -417,6 +418,7 @@ test('实际布局分配模块，关闭唯一公告移除空栏，目录仅在�
       announcementLink: '',
       announcementClosable: true,
       sidebarStats: false,
+      sidebarBlogInfo: false,
       latestPosts: false,
       sidebarMoments: false,
       contactEnable: false,
@@ -504,7 +506,15 @@ test('设置保存保留无父链接的分组、隐藏菜单和独立侧栏位�
               JSON.stringify(
                 normalize({
                   menus: extraFixture,
-                  sidebarPositions: { stats: 'right', profile: 'hidden' },
+                  sidebarPositions: {
+                    stats: 'right',
+                    profile: 'hidden',
+                    blogInfo: 'right',
+                  },
+                  sidebarBlogInfo: true,
+                  blogStartDate: '2024-02-29',
+                  blogCommentCount: 0,
+                  blogCommentCountDate: '2026-11-12',
                 }),
               ),
             ),
@@ -543,6 +553,15 @@ test('设置保存保留无父链接的分组、隐藏菜单和独立侧栏位�
     assert.equal(saved.menus[0].children[1].visible, false)
     assert.equal(saved.sidebarPositions.stats, 'right')
     assert.equal(saved.sidebarPositions.profile, 'hidden')
+    assert.equal(saved.sidebarPositions.blogInfo, 'right')
+    assert.equal(saved.sidebarBlogInfo, true)
+    assert.equal(saved.blogStartDate, '2024-02-29')
+    assert.equal(saved.blogCommentCount, 0)
+    assert.equal(saved.blogCommentCountDate, '2026-11-12')
+    page.s!.blogCommentCount = 0.5
+    await page.save()
+    assert.match(errors[0], /评论.*整数/)
+    assert.equal(saved.blogCommentCount, 0)
   } finally {
     injector.destroy()
   }

@@ -75,7 +75,7 @@ test('admin只匹配后台首段，部署子路径不影响首页或文章布局
           provide: BlogService,
           useValue: {
             config: { baseHref: base },
-            settings: signal({ heroEnable: true, busuanzi: false }),
+            settings: signal({ heroEnable: true }),
             findPost: () => ({ hideSidebar: false }),
           },
         },

@@ -196,12 +196,6 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
                   [(ngModel)]="s.themeFixed"
                 />固定主题色（隐藏调色盘）</label
               >
-              <label class="flex items-center gap-2"
-                ><input
-                  type="checkbox"
-                  [(ngModel)]="s.busuanzi"
-                />不蒜子访问统计</label
-              >
             </div>
             <div class="md:col-span-2">
               <label class="fuwari-label">横幅图片</label>
@@ -270,6 +264,76 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
               /></label>
             }
           </div>
+        </div>
+
+        <div class="fuwari-card p-5">
+          <h2 class="fuwari-section-title mb-4">博客信息</h2>
+          <label class="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              [(ngModel)]="s.sidebarBlogInfo"
+            />显示博客信息模块
+          </label>
+          <p class="fuwari-muted mt-2 text-xs leading-relaxed">
+            桌面位置在上方“侧栏模块位置”中选择；隐藏位置只影响桌面，关闭此开关则在所有设备隐藏。
+          </p>
+          <div class="mt-4 grid gap-4 md:grid-cols-3">
+            <div>
+              <label for="blog-start-date" class="fuwari-label"
+                >运行起始日期</label
+              >
+              <input
+                id="blog-start-date"
+                class="fuwari-input mt-1"
+                type="date"
+                [(ngModel)]="s.blogStartDate"
+                aria-describedby="blog-runtime-help"
+              />
+            </div>
+            <div>
+              <label for="blog-comment-count" class="fuwari-label"
+                >评论总数快照（可留空）</label
+              >
+              <input
+                id="blog-comment-count"
+                class="fuwari-input mt-1"
+                type="number"
+                min="0"
+                step="1"
+                [(ngModel)]="s.blogCommentCount"
+                aria-describedby="blog-comment-help"
+              />
+            </div>
+            <div>
+              <label for="blog-comment-date" class="fuwari-label"
+                >评论快照核实日期</label
+              >
+              <input
+                id="blog-comment-date"
+                class="fuwari-input mt-1"
+                type="date"
+                [(ngModel)]="s.blogCommentCountDate"
+                aria-describedby="blog-comment-help"
+              />
+            </div>
+          </div>
+          <p
+            id="blog-runtime-help"
+            class="fuwari-muted mt-3 text-xs leading-relaxed"
+          >
+            起始日期独立于页脚建站年份，留空显示“未配置”。天数按访客本地日历计算，起始当天为
+            0 天，未来日期显示“尚未开始”；跨日和标签页唤醒时自动更新。
+          </p>
+          <p
+            id="blog-comment-help"
+            class="fuwari-muted mt-2 text-xs leading-relaxed"
+          >
+            Giscus
+            的单篇评论信息无法提供全站总数。需要显示评论数时，请核实本站公开评论（含回复），同时填写总数和核实日期；两项都留空显示“未配置”。前台标注手动快照及日期，新增评论后需自行更新。
+          </p>
+          <p class="fuwari-muted mt-2 text-xs leading-relaxed">
+            文章数来自公开索引；最后活动取公开文章与碎碎念的发布和更新时间，草稿及隐藏文章不参与。正式站点保存并重新部署后生效。
+          </p>
         </div>
 
         <div class="fuwari-card p-5">
