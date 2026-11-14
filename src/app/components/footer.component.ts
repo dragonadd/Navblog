@@ -37,13 +37,6 @@ import { BlogService } from '../services/blog.service'
             >{{ settings().beiAnGongan }}</a
           >
         }
-        <div
-          class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs"
-        >
-          <a routerLink="/admin" class="fuwari-link" title="管理后台"
-            ><i class="fas fa-pen-nib"></i
-          ></a>
-        </div>
       </div>
     </footer>
   `,

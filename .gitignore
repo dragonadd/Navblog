@@ -11,8 +11,3 @@ Thumbs.db
 # 构建时生成
 src/generated/
 src/index.html
-# 本地开发记录与实施计划
-docs/acceptance-fixes.md
-docs/blog-config-migration-assessment.md
-docs/fuwari-adaptation.md
-docs/superpowers/
