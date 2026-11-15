@@ -8,7 +8,7 @@ Fuwari 风格主题 · Markdown 文章 · Git 仓库即数据库 · 零服务器
 
 使用 Angular 21、TypeScript 和 Tailwind CSS 4 构建。
 
-[功能](#-功能) · [快速开始](#-快速开始) · [部署教程](#-部署教程) · [后台使用](#-后台使用) · [配置](#-配置说明) · [常见问题](#-常见问题)
+[功能](#-功能) · [快速开始](./docs/deploy.md#快速开始) · [部署教程](#-部署教程) · [后台使用](#-后台使用) · [配置](#-配置说明) · [常见问题](#-常见问题)
 
 </div>
 
@@ -47,7 +47,7 @@ Fuwari 风格主题 · Markdown 文章 · Git 仓库即数据库 · 零服务器
 - Giscus 评论（随深色模式自动切换主题）
 - 主题色相调色盘（HEX 复制、固定色相）、深浅色（系统／固定／定时切换），访客可恢复站点默认外观
 - 侧栏便签公告（支持 Markdown、保留换行、可关闭）、最新文章、最新碎碎念、联系翻转卡片；桌面模块可选择左侧、右侧或隐藏，全部隐藏时文章居中并保持阅读宽度；手机保持单列，文章可全宽阅读
-- 独立博客信息模块：公开文章数、运行天数和最后活动；评论总数支持带核实日期的手动快照，未配置时显示明确状态
+- 独立博客信息模块：文章数（含加密和隐藏文章，排除草稿）、运行天数和最后活动；评论总数支持带核实日期的手动快照，未配置时显示明确状态
 - 每日文字：多个接口来源独立按天缓存；自定义 `{date} {time} {weekday} {month} {day}` 变量，时间自动更新
 - 自定义 CSS、外部 CSS／JS、ICP备案与公安备案、RSS 开关及全文／摘要模式、PWA 安装参数
 - 响应式布局，手机端友好
@@ -68,45 +68,6 @@ Fuwari 风格主题 · Markdown 文章 · Git 仓库即数据库 · 零服务器
 - 文章、站点设置和关于页保存也校验编辑版本；发现其他窗口的修改时保留输入并提示重新读取
 - **本地演示无需 Token**：在浏览器中试写文章和修改设置，可导出已保存的演示文件
 - 保存即提交（GitHub 上一次保存只产生一次提交）
-
-## 🚀 快速开始
-
-> 只想快速上线？跳过本地步骤，直接看 [部署教程](#-部署教程)，全程只需要浏览器。
-
-建议使用 [Node.js](https://nodejs.org/) **22.12 或更新的 22 LTS**，或 Node.js 24；配合 [pnpm](https://pnpm.io/) 10（`npm i -g pnpm@10`）。
-
-```bash
-# 1. Fork 本仓库后 clone 你自己的仓库
-git clone https://github.com/<你的用户名>/<你的仓库名>.git
-cd <你的仓库名>
-
-# 2. 安装依赖
-pnpm install
-
-# 3. 交互式初始化：填写仓库地址、博客标题、作者等（也可以手动改配置文件）
-pnpm run setup
-
-# 4. 本地预览 http://localhost:7002
-pnpm start
-
-# 5. 推送到仓库，然后按下方部署教程开启自动部署
-git add . && git commit -m "init my blog" && git push
-```
-
-其他命令：
-
-| 命令 | 说明 |
-| --- | --- |
-| `pnpm run new "文章标题"` | 在 `data/posts/` 下新建一篇文章 |
-| `pnpm run build` | 构建到 `dist/browser` |
-| `pnpm run preview` | 预览构建产物 http://localhost:4173 |
-| `pnpm exec tsx scripts/preview.ts 7002` | 将已构建产物预览在 http://localhost:7002；不会自动重建 |
-
-### 无需 Token 的本地演示
-
-启动后打开 `/admin`，选择 **进入本地演示（无需 Token）**。可编辑文章、碎碎念、关于页和站点设置，保存后点击“查看博客”预览。
-
-**演示修改只存在于当前浏览器，不会写回项目或 Git。** 刷新保留副本，退出演示恢复构建内容；换浏览器不会共享数据。“导出演示数据”可复制已保存的 JSON 文件映射，用于备份或核对后同步到项目。正式发布请修改项目 `data/` 文件，或使用 Token 登录后提交到仓库。
 
 ## 🌍 部署教程
 
@@ -177,55 +138,17 @@ Cloudflare 的回退限定在 `/admin` 和具体后台页面；首页与后台 H
 
 ## ✍️ 后台使用
 
-### 1. 获取 Access Token
+1. [创建有仓库写权限的 Access Token](./docs/admin.md#创建-access-token)，访问 `https://你的站点/admin` 登录。首次登录后可在 **站点设置 → 登录密码管理** 设置密码，之后支持密码或 Token 登录。
+2. 点击 **写文章**，填写标题、分类、标签和封面，在 Markdown 编辑器中写作；支持图片粘贴、拖拽、实时预览及 `Ctrl+S` 保存。
+3. 保存后自动提交到仓库，托管平台重新构建完成后刷新前台即可查看。若提示版本冲突，先复制保留输入，再重新读取最新内容。
 
-后台通过 Token 调用 Git 平台 API 提交文件，Token 需要对你的博客仓库有**写权限**：
+常用入口：`/admin` 管理文章，`/admin/moments` 发布碎碎念，`/admin/about` 编辑关于页，`/admin/settings` 修改站点设置。
 
-| 平台 | 获取方式 | 所需权限 |
-| --- | --- | --- |
-| GitHub（推荐 Fine-grained） | [Settings → Developer settings → Fine-grained tokens](https://github.com/settings/personal-access-tokens/new) | Repository access 选你的博客仓库；Permissions → **Contents: Read and write** |
-| GitHub（Classic） | [Settings → Developer settings → Tokens (classic)](https://github.com/settings/tokens/new) | 勾选 `repo`（公开仓库也可只勾 `public_repo`） |
-| Gitee | [设置 → 私人令牌](https://gitee.com/profile/personal_access_tokens) | `projects` |
-| GitLab | [Preferences → Access Tokens](https://gitlab.com/-/user_settings/personal_access_tokens) | `api` |
+本地试用可选择 **进入本地演示（无需 Token）**；修改仅保存在当前浏览器，支持导出。启动方法见 [快速开始](./docs/deploy.md#快速开始)。
 
-### 2. 登录与写作
+Token 仅存当前标签页的 `sessionStorage`，退出登录会清除。登录密码建议使用 12 位以上的独有随机密码或更长口令；忘记密码或 Token 失效时，用有效 Token 登录后重设。
 
-1. 访问 `https://你的站点/admin`。未设登录密码时粘贴 Token；已有密码时默认密码登录，也可切换 Token 登录。
-2. **文章** → **写文章**：填写标题、分类、标签、封面，在编辑器里写 Markdown，`Ctrl+S` 保存。
-3. 保存后等待 1～2 分钟（托管平台重新构建），刷新前台即可看到新文章。
-
-其他入口：`/admin/moments` 管理碎碎念，`/admin/about` 编辑关于页，`/admin/settings` 配置主题、公告、每日文字、RSS、PWA 等。
-
-> 🔒 Token 只存当前标签页的 sessionStorage，作为请求凭据发送给配置的 Git API。升级后旧 localStorage Token 会清除，需要重新登录。刷新可保留登录，退出会清除；浏览器会话恢复可能保留数据。自定义脚本仅使用可信来源。
-
-### 3. 自定义登录密码管理
-
-Access Token 通常很长，不方便记忆，也容易忘记保存在什么地方。首次使用 Token 登录后，可以设置一个自定义登录密码，之后输入密码即可快捷登录；Token 登录入口仍然保留。
-
-在 **站点设置 → 登录密码管理** 输入并确认密码。密码至少 8 位且包含字母和数字；**为了安全性，建议使用 12 位以上的独有随机密码，或由密码管理器生成的长口令**。浏览器使用 PBKDF2-SHA-256 派生密钥，再用 AES-GCM 加密当前 Token，单独提交密文文件 `data/auth.json`。加密的是 Token，登录密码不直接保存到仓库。部署成功后显示密码登录 Tab；忘记密码或 Token 过期时，可使用有效的新 Token 登录并重新设置密码。
-
-一般使用仓库主分支（通常为 `main`）部署，也可自行选择其他分支。默认 `branch: auto` 跟随托管平台选定的部署分支，后台向该分支提交文章、设置和登录凭证。凭证按仓库和分支绑定，保存位置以页面显示的提交分支为准；保存后需等待该分支部署完成。更换部署分支后，如需密码登录，请在新站点用 Token 登录并重新设置密码。
-
-“移除密码”会删除当前文件并恢复 Token 登录，但 Git 历史、旧部署和他人已经下载的密文仍可能存在。需要撤销旧访问时，请在 Git 平台撤销或轮换 Token；删除文件不能代替撤销凭证。本地演示不管理真实登录凭证。
-
-> **重要安全提醒：公开密文可以被下载并离线反复猜解密码。** 弱密码不适合保护具有仓库写权限的 Token，即使满足 8 位最低要求，也不代表足够安全。请优先使用 **12 位以上的独有随机密码或更长口令**，并把 Token 权限限制到所需仓库和必要操作。
-
-NavBlog 是纯静态项目，也可以从私有仓库构建部署。私有仓库能减少源码、文章历史和仓库内文件的直接公开，但免费部署条件需要区分个人仓库与组织仓库：
-
-| 平台 | 私有仓库与免费计划 |
-| --- | --- |
-| Cloudflare Pages | 支持私有仓库的 Git 集成，免费计划有构建和使用额度限制。 |
-| Netlify | 可连接个人账号的私有仓库；组织私有仓库按 Git 平台及 Core Pro / Enterprise 计划条件提供支持。 |
-| Vercel | 个人私有仓库可使用 Hobby 计划；GitHub 组织、GitLab 群组或 Bitbucket 工作区中的私有仓库不能部署到 Hobby，需要符合 Pro 等计划条件。 |
-| GitHub Pages | GitHub Free 支持公开仓库；私有仓库需要 GitHub Pro、Team 或 Enterprise 等支持该能力的计划。 |
-
-授权托管平台时，记得允许对应的 Git 集成访问你的私有仓库，否则平台无法读取源码进行构建。计划政策可能调整，请以官方说明为准：[Cloudflare Git 集成](https://developers.cloudflare.com/pages/configuration/git-integration/)、[Netlify 仓库支持](https://docs.netlify.com/build/git-workflows/overview/)、[Vercel 私有仓库部署](https://vercel.com/docs/git#deploying-private-git-repositories)、[GitHub Pages 可用计划](https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages)。
-
-使用私有博客仓库时，默认的 GitHub 图片 CDN 无法读取其中的 `images` 分支。可将 `imageRepoUrl` 指向独立的公开图片仓库，或把图片作为站点资源随构建发布；使用 Giscus 时也需要一个公开的 Discussions 仓库。操作见 [图片存储](./docs/admin.md#图片存储) 和 [Giscus 配置](./docs/config.md#giscus-评论)。
-
-**私有仓库不等于私有网站。** 当前实现会把有效的 `data/auth.json` 随构建发布为网站资源；访客可以直接访问它，或在开发者工具的网络面板看到它被下载。文件不含明文 Token，但密文仍然公开。因此，真正保护写权限凭证的是强密码、加密和 Token 权限控制，仓库可见性只是额外一层保护。
-
-详细原理见 [后台认证说明](./docs/authentication.md)，后台操作见 [docs/admin.md](./docs/admin.md)。
+详见 [后台操作指南](./docs/admin.md)、[登录密码与凭证说明](./docs/authentication.md) 和 [私有仓库部署](./docs/deploy.md#私有仓库部署)。
 
 ## ⚙️ 配置说明
 
@@ -288,7 +211,7 @@ hideSidebar: true           # 可选，全宽阅读
 
 在 **站点设置 → 博客信息** 开启模块，并在“侧栏模块位置”选择左侧、右侧或隐藏；位置只控制桌面，模块开关同时控制手机。旧配置缺省关闭，保留原有侧栏布局。
 
-文章数统计公开文章（含加密文章），排除草稿和隐藏文章；最后活动取公开文章与碎碎念的发布及更新时间。运行天数需填写明确的 `YYYY-MM-DD` 起始日期，按访客本地日历计算，起始当天为 0 天；留空显示“未配置”。
+侧栏统计卡片和博客信息模块的文章数均包含公开、加密和隐藏文章，排除草稿；最后活动取公开文章与碎碎念的发布及更新时间。运行天数需填写明确的 `YYYY-MM-DD` 起始日期，按访客本地日历计算，起始当天为 0 天；留空显示“未配置”。
 
 Giscus 未提供全站评论汇总。需要显示评论数时，在后台同时填写已核实的公开评论总数（含回复）和核实日期，前台会标注为手动快照；留空显示“未配置”，新增评论后需自行更新。详见 [博客信息配置](./docs/config.md#博客信息)。
 

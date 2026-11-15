@@ -173,12 +173,21 @@ test('评论总数仅接受带核实日期的非负整数快照，真实零与�
   )
 })
 
-test('文章数和最后活动排除草稿与隐藏文章，保留公开加密文章，不改动索引', () => {
+test('文章数包含公开、加密和隐藏文章，排除所有草稿；最后活动仍取公开内容', () => {
   const posts = [
     post('public', '2026-11-01T00:00:00Z'),
     post('encrypted', '2026-11-02T00:00:00Z', { encrypted: true }),
     post('hidden', '2026-11-12T00:00:00Z', { hidden: true }),
+    post('hidden-encrypted', '2026-11-12T00:00:00Z', {
+      hidden: true,
+      encrypted: true,
+    }),
     post('draft', '2026-11-12T00:00:00Z', { draft: true }),
+    post('draft-encrypted', '2026-11-12T00:00:00Z', {
+      draft: true,
+      encrypted: true,
+    }),
+    post('draft-hidden', '2026-11-12T00:00:00Z', { draft: true, hidden: true }),
   ]
   const original = structuredClone(posts)
   const info = readInfo(
@@ -187,7 +196,7 @@ test('文章数和最后活动排除草稿与隐藏文章，保留公开加密�
     [],
     new Date('2026-11-13T12:00:00Z'),
   )
-  assert.equal(info?.articleCount, 2)
+  assert.equal(info?.articleCount, 4)
   assert.equal(info?.lastActivity, '2026-11-02T00:00:00.000Z')
   assert.equal(info?.runningDays, null)
   assert.equal(info?.commentCount, null)
@@ -375,7 +384,7 @@ test('实际模块读取公共数据，演示保存后更新，损坏碎碎念�
   })
   const f = componentFixture()
   try {
-    assert.equal(f.component.info().articleCount, 2)
+    assert.equal(f.component.info().articleCount, 3)
     assert.equal(f.component.info().lastActivity, '2026-11-11T00:00:00.000Z')
     f.setMoments(
       JSON.stringify([
@@ -394,9 +403,36 @@ test('实际模块读取公共数据，演示保存后更新，损坏碎碎念�
     f.setMoments('{')
     f.blog.refreshDemo()
     assert.doesNotThrow(() => f.component.info())
-    assert.equal(f.component.info().articleCount, 2)
+    assert.equal(f.component.info().articleCount, 3)
     assert.equal(f.component.info().lastActivity, null)
     assert.equal(f.component.info().activityUnavailable, true)
+  } finally {
+    f.injector.destroy()
+  }
+})
+
+test('草稿发布或转回草稿时，侧栏文章总数和博客信息同步更新', () => {
+  const f = componentFixture()
+  try {
+    assert.equal(f.blog.publishedPosts().length, 3)
+    assert.equal(f.component.info().articleCount, 3)
+    f.blog.allPosts.update((posts) =>
+      posts.map((item) =>
+        item.slug === 'draft'
+          ? { ...item, draft: false, hidden: true, encrypted: true }
+          : item,
+      ),
+    )
+    assert.equal(f.blog.publishedPosts().length, 4)
+    assert.equal(f.component.info().articleCount, 4)
+    f.blog.allPosts.update((posts) =>
+      posts.map((item) =>
+        item.slug === 'hidden' ? { ...item, draft: true } : item,
+      ),
+    )
+    assert.equal(f.blog.publishedPosts().length, 3)
+    assert.equal(f.component.info().articleCount, 3)
+    assert.equal(f.blog.posts().length, 2)
   } finally {
     f.injector.destroy()
   }

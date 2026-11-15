@@ -1,14 +1,57 @@
 # 部署教程
 
-本文详细介绍如何把 NavBlog 部署到 GitHub Pages、Netlify、Vercel、Cloudflare Pages，以及绑定自定义域名、开启后台、配置评论。
+本文介绍本地运行、构建预览，以及部署到 GitHub Pages、Netlify、Vercel、Cloudflare Pages、绑定自定义域名和开启后台的方法。
 
+- [快速开始](#快速开始)
 - [0. 准备工作（所有平台通用）](#0-准备工作所有平台通用)
+- [私有仓库部署](#私有仓库部署)
 - [1. GitHub Pages](#1-github-pages)
 - [2. Netlify](#2-netlify)
 - [3. Vercel](#3-vercel)
 - [4. Cloudflare Pages](#4-cloudflare-pages)
 - [5. 部署到 Gitee / GitLab](#5-部署到-gitee--gitlab)
 - [6. 部署完成后](#6-部署完成后)
+
+---
+
+## 快速开始
+
+只想通过浏览器上线，可从 [准备工作](#0-准备工作所有平台通用) 开始，再选择托管平台。
+
+本地运行建议使用 [Node.js](https://nodejs.org/) **22.12 或更新的 22 LTS**，或 Node.js 24；配合 [pnpm](https://pnpm.io/) 10（`npm i -g pnpm@10`）。
+
+```bash
+# 1. Fork 本仓库后 clone 你自己的仓库
+git clone https://github.com/<你的用户名>/<你的仓库名>.git
+cd <你的仓库名>
+
+# 2. 安装依赖
+pnpm install
+
+# 3. 交互式初始化：填写仓库地址、博客标题、作者等（也可以手动改配置文件）
+pnpm run setup
+
+# 4. 本地预览 http://localhost:7002
+pnpm start
+
+# 5. 推送到仓库，然后按下方部署教程开启自动部署
+git add . && git commit -m "init my blog" && git push
+```
+
+其他命令：
+
+| 命令 | 说明 |
+| --- | --- |
+| `pnpm run new "文章标题"` | 在 `data/posts/` 下新建一篇文章 |
+| `pnpm run build` | 构建到 `dist/browser` |
+| `pnpm run preview` | 预览构建产物 http://localhost:4173 |
+| `pnpm exec tsx scripts/preview.ts 7002` | 将已构建产物预览在 http://localhost:7002；不会自动重建 |
+
+### 无需 Token 的本地演示
+
+启动后打开 `/admin`，选择 **进入本地演示（无需 Token）**。可编辑文章、碎碎念、关于页和站点设置，保存后点击“查看博客”预览。
+
+**演示修改只存在于当前浏览器，不会写回项目或 Git。** 刷新保留副本，退出演示恢复构建内容；换浏览器不会共享数据。“导出演示数据”可复制已保存的 JSON 文件映射，用于备份或核对后同步到项目。正式发布请修改项目 `data/` 文件，或使用 Token 登录后提交到仓库。详细操作见 [后台使用指南](admin.md#本地演示无需-token)。
 
 ---
 
@@ -65,6 +108,23 @@ imageRepoUrl: auto
 ### 0.3（可选）修改站点信息
 
 `data/settings.json` 中的标题、作者、头像等，部署完成后可以在后台 **站点设置** 中图形化修改，现在不改也没关系。
+
+### 私有仓库部署
+
+NavBlog 支持从私有仓库构建部署。私有仓库可以减少源码和文章历史的直接公开，免费部署条件取决于个人或组织账户以及托管计划：
+
+| 平台 | 私有仓库与免费计划 |
+| --- | --- |
+| Cloudflare Pages | 支持私有仓库的 Git 集成，免费计划有构建和使用额度限制。 |
+| Netlify | 可连接个人账号的私有仓库；组织私有仓库按 Git 平台及 Core Pro / Enterprise 计划条件提供支持。 |
+| Vercel | 个人私有仓库可使用 Hobby 计划；GitHub 组织、GitLab 群组或 Bitbucket 工作区中的私有仓库需要符合 Pro 等计划条件。 |
+| GitHub Pages | GitHub Free 支持公开仓库；私有仓库需要 GitHub Pro、Team 或 Enterprise 等支持该能力的计划。 |
+
+授权托管平台时，允许对应 Git 集成访问私有仓库。计划政策以官方说明为准：[Cloudflare Git 集成](https://developers.cloudflare.com/pages/configuration/git-integration/)、[Netlify 仓库支持](https://docs.netlify.com/build/git-workflows/overview/)、[Vercel 私有仓库部署](https://vercel.com/docs/git#deploying-private-git-repositories)、[GitHub Pages 可用计划](https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages)。
+
+GitHub 图片 CDN 无法读取私有仓库的 `images` 分支。可将 `imageRepoUrl` 指向独立的公开图片仓库，或把图片作为站点资源随构建发布；使用 Giscus 也需要公开的 Discussions 仓库。详见 [图片存储](admin.md#图片存储) 和 [Giscus 配置](config.md#giscus-评论)。
+
+私有仓库构建出的网站资源仍可被访客访问，包括发布后的 `data/auth.json` 密文。登录密码、Token 权限与撤销方法见 [后台认证说明](authentication.md#保护边界)。
 
 ---
 

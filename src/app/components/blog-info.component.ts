@@ -16,7 +16,7 @@ import { formatMomentDate } from '../../shared/moments'
           </dt>
           <dd
             class="fuwari-chip !block min-w-0 max-w-[55%] !px-2 !py-0.5 text-right text-xs break-all tabular-nums"
-            title="公开文章，包含加密文章；排除草稿和隐藏文章"
+            title="包含公开、加密和隐藏文章；排除草稿"
           >
             {{ info().articleCount }}
           </dd>

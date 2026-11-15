@@ -26,7 +26,7 @@ NavBlog 的后台位于站点的 `/admin` 路径，是一个纯前端页面：�
 4. **Permissions → Repository permissions → Contents** 选择 **Read and write**。
 5. 点击 **Generate token**，复制以 `github_pat_` 开头的字符串（只显示一次）。
 
-> 使用 Classic Token：<https://github.com/settings/tokens/new>，勾选 `repo` 即可。
+> 使用 Classic Token：<https://github.com/settings/tokens/new>，勾选 `repo`；仅访问公开仓库时可使用 `public_repo`。
 
 ### Gitee
 
@@ -109,7 +109,7 @@ GitHub 请求统一使用 `Authorization: Bearer <token>` 和 `Accept: applicati
 
 编辑文章时勾选“隐藏文章（仅搜索和直链可见）”。保存并部署后，该文章不进入首页、归档、分类、标签、最新文章、上下篇、RSS 或 sitemap，仍可通过站内搜索和直接链接访问。后台显示“隐藏”标记，可以继续编辑或取消隐藏。
 
-隐藏只控制公开列表，不是权限保护；正文与地址仍为公开资源。需要保护正文时使用文章加密；不希望发布时使用草稿。
+已发布的隐藏文章仍计入侧栏文章统计。隐藏只控制公开列表，不是权限保护；正文与地址仍为公开资源。需要保护正文时使用文章加密；不希望发布时使用草稿。
 
 ## 文章密码加密
 

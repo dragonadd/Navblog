@@ -69,8 +69,11 @@ import { formatMomentDate } from '../../shared/moments'
           <a
             routerLink="/archive"
             class="rounded-xl p-2 hover:bg-[var(--fuwari-primary-soft)]"
+            title="包含公开、加密和隐藏文章；排除草稿"
           >
-            <div class="text-lg font-bold">{{ blog.posts().length }}</div>
+            <div class="text-lg font-bold">
+              {{ blog.publishedPosts().length }}
+            </div>
             <div class="fuwari-muted text-xs">文章</div>
           </a>
           <a

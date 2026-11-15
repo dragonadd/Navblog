@@ -63,7 +63,8 @@ export function readBlogInfo(
   moments: readonly Moment[] | null,
   now = new Date(),
 ) {
-  const publicPosts = posts.filter((post) => !post.draft && !post.hidden)
+  const publishedPosts = posts.filter((post) => !post.draft)
+  const publicPosts = publishedPosts.filter((post) => !post.hidden)
   const start = calendarDay(settings.blogStartDate || '')
   // 比较本地日历日期，避免夏令时使一天不足 24 小时。
   const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
@@ -89,7 +90,7 @@ export function readBlogInfo(
     times.some((time) => time === null) ||
     (times.length > 0 && latest === null)
   return {
-    articleCount: publicPosts.length,
+    articleCount: publishedPosts.length,
     commentCount: settings.blogCommentCount ?? null,
     commentCountDate: settings.blogCommentCountDate || '',
     runningDays:

@@ -325,7 +325,14 @@ test('菜单格式错误有明确提示，合法链接和空的末级数组保�
 
 test('碎碎念和关于与其他内置菜单一样支持显隐和旧配置默认值', () => {
   const { injector, header } = makeHeader(
-    normalize({ menuMoments: false, menuAbout: false }),
+    normalize({
+      menuHome: true,
+      menuArchive: true,
+      menuCategories: true,
+      menuTags: true,
+      menuMoments: false,
+      menuAbout: false,
+    }),
   )
   try {
     assert.deepEqual(
@@ -333,7 +340,14 @@ test('碎碎念和关于与其他内置菜单一样支持显隐和旧配置默�
       ['/', '/archive', '/categories', '/tags'],
     )
     header.settings.set(
-      normalize({ menuHome: false, menuMoments: 'true', menuAbout: 'false' }),
+      normalize({
+        menuHome: false,
+        menuArchive: true,
+        menuCategories: true,
+        menuTags: true,
+        menuMoments: 'true',
+        menuAbout: 'false',
+      }),
     )
     assert.deepEqual(
       header.visibleMenus().map((item: any) => item.url),
