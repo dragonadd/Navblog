@@ -8,6 +8,13 @@ import type {
 import { normalizeResourceUrl } from './custom-resources'
 import { normalizeBlogInfoSettings } from './blog-info'
 
+export const DEFAULT_POSTS_PER_PAGE = 5
+
+export function normalizePostsPerPage(value: unknown): number {
+  const size = Number(value)
+  return Number.isSafeInteger(size) && size > 0 ? size : DEFAULT_POSTS_PER_PAGE
+}
+
 export const SIDEBAR_MODULES = [
   { key: 'profile', label: '个人资料' },
   { key: 'announcement', label: '公告' },
@@ -47,6 +54,7 @@ export const THEME_DEFAULTS: Partial<BlogSettings> = {
   showSummary: true,
   showListTags: true,
   listMode: 'page',
+  postsPerPage: DEFAULT_POSTS_PER_PAGE,
   latestPosts: true,
   sidebarMoments: true,
   contactEnable: false,
@@ -302,6 +310,7 @@ export function normalizeThemeSettings<T extends Partial<BlogSettings>>(
   }
   return {
     ...s,
+    postsPerPage: normalizePostsPerPage(settings.postsPerPage),
     coverWidth: Math.min(
       360,
       Math.max(200, Number(settings.coverWidth) || 280),

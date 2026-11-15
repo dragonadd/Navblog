@@ -4,6 +4,7 @@ import { PostListComponent } from '../components/post-list.component'
 import { PaginationComponent } from '../components/pagination.component'
 import { HitokotoComponent } from '../components/hitokoto.component'
 import { ScrollPostListComponent } from '../components/scroll-post-list.component'
+import { normalizePostsPerPage } from '../../shared/theme-settings'
 
 @Component({
   selector: 'app-home-page',
@@ -16,7 +17,7 @@ import { ScrollPostListComponent } from '../components/scroll-post-list.componen
   template: `
     <app-hitokoto />
     @if (blog.settings().listMode === 'scroll') {
-      <app-scroll-post-list [posts]="blog.posts()" [initialPage]="current()" />
+      <app-scroll-post-list [posts]="blog.posts()" />
     } @else {
       <app-post-list [posts]="list()" [showCover]="blog.settings().showCover" />
       <app-pagination [current]="current()" [total]="totalPages()" />
@@ -27,7 +28,7 @@ export class HomePage {
   readonly blog = inject(BlogService)
   readonly page = input<string>()
   readonly size = computed(() =>
-    Math.max(1, Number(this.blog.settings().postsPerPage) || 8),
+    normalizePostsPerPage(this.blog.settings().postsPerPage),
   )
   readonly totalPages = computed(() =>
     Math.max(1, Math.ceil(this.blog.posts().length / this.size())),
@@ -42,7 +43,9 @@ export class HomePage {
   constructor() {
     effect(() =>
       this.blog.setTitle(
-        this.current() > 1 ? `第 ${this.current()} 页` : undefined,
+        this.blog.settings().listMode !== 'scroll' && this.current() > 1
+          ? `第 ${this.current()} 页`
+          : undefined,
       ),
     )
   }

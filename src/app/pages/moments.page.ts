@@ -10,11 +10,19 @@ import { BlogService } from '../services/blog.service'
   template: `
     <header class="fuwari-card mb-4 p-5 md:p-6">
       <h1 class="text-3xl font-bold">碎碎念</h1>
-      <p class="fuwari-muted mt-2 text-sm">
-        记录此刻，留给未来。<span class="ml-2"
-          >{{ items().length }} 条动态</span
+      <div class="mt-2 flex items-end justify-between gap-3">
+        <p class="fuwari-muted min-w-0 flex-1 text-sm">
+          记录此刻，留给未来。<span class="ml-2"
+            >{{ items().length }} 条动态</span
+          >
+        </p>
+        <a
+          routerLink="/admin/moments"
+          class="fuwari-btn shrink-0 !px-3 !py-2 !text-xs"
+          title="进入后台发布碎碎念"
+          >去发说说</a
         >
-      </p>
+      </div>
     </header>
     @if (error()) {
       <div class="fuwari-card p-5" role="alert">

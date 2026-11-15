@@ -230,11 +230,12 @@ for (const { meta, body } of published) {
 
 // ---------- 列表页 ----------
 const metas = posts.map((p) => p.meta)
-const size = Math.max(1, Number(settings.postsPerPage) || 8)
-const totalPages = Math.max(1, Math.ceil(posts.length / size))
+const size = settings.postsPerPage
+const paginated = settings.listMode !== 'scroll'
+const totalPages = paginated ? Math.max(1, Math.ceil(posts.length / size)) : 1
 const home = renderPage({
   route: '',
-  body: `<h1>${escapeHtml(settings.title)}</h1><p>${escapeHtml(settings.description)}</p>${nav}${listHtml(metas.slice(0, size))}`,
+  body: `<h1>${escapeHtml(settings.title)}</h1><p>${escapeHtml(settings.description)}</p>${nav}${listHtml(paginated ? metas.slice(0, size) : metas)}`,
 })
 fs.writeFileSync(path.join(dist, 'index.html'), home)
 for (let i = 2; i <= totalPages; i++) {
@@ -438,5 +439,5 @@ fs.writeFileSync(
 )
 
 console.log(
-  `[postbuild] 已生成 ${published.length} 篇文章静态页、${totalPages} 个分页；RSS=${settings.rssEnable !== false}，PWA=${!!settings.pwaEnable}`,
+  `[postbuild] 已生成 ${published.length} 篇文章静态页、${paginated ? `${totalPages} 个分页` : '自动加载（无分页）'}；RSS=${settings.rssEnable !== false}，PWA=${!!settings.pwaEnable}`,
 )

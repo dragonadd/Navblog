@@ -101,15 +101,6 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
                 [(ngModel)]="s.since"
               />
             </div>
-            <div>
-              <label class="fuwari-label">每页文章数</label
-              ><input
-                class="fuwari-input"
-                type="number"
-                min="1"
-                [(ngModel)]="s.postsPerPage"
-              />
-            </div>
           </div>
         </div>
 
@@ -240,15 +231,47 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
             }
           </div>
           <div class="grid gap-4 md:grid-cols-2">
-            <label class="fuwari-label"
-              >列表方式<select
+            <div>
+              <label for="list-mode" class="fuwari-label">列表方式</label>
+              <select
+                id="list-mode"
                 class="fuwari-input mt-1"
                 [(ngModel)]="s.listMode"
+                aria-describedby="list-mode-help"
               >
                 <option value="page">分页</option>
-                <option value="scroll">自动加载 / 加载更多</option>
-              </select></label
-            >
+                <option value="scroll">自动加载（无分页）</option>
+              </select>
+              @if (s.listMode !== 'scroll') {
+                <label for="posts-per-page" class="fuwari-label mt-3"
+                  >每页文章数</label
+                >
+                <input
+                  id="posts-per-page"
+                  class="fuwari-input mt-1"
+                  type="number"
+                  min="1"
+                  step="1"
+                  [(ngModel)]="s.postsPerPage"
+                  aria-describedby="list-mode-help"
+                />
+              }
+              <p
+                id="list-mode-help"
+                class="fuwari-muted mt-2 text-xs leading-relaxed"
+              >
+                {{
+                  s.listMode === 'scroll'
+                    ? '根据屏幕可见范围自动加载，向下滚动时不断追加文章，不显示页码。'
+                    : '默认每页 5 篇，可自行调整；末页显示余下文章，通过页码切换。'
+                }}
+                {{
+                  demo.active()
+                    ? '保存后点击“查看博客”预览。'
+                    : '保存并重新部署后生效。'
+                }}
+              </p>
+            </div>
             <label class="fuwari-label"
               >桌面封面列宽（200–360px）<input
                 type="number"
@@ -1141,10 +1164,15 @@ export class SettingsPage {
     if (!this.s) return
     this.saving.set(true)
     try {
+      if (
+        this.s.listMode !== 'scroll' &&
+        (!Number.isSafeInteger(Number(this.s.postsPerPage)) ||
+          Number(this.s.postsPerPage) < 1)
+      )
+        throw new Error('每页文章数必须为大于 0 的整数')
       const s = {
         ...normalizeThemeSettings(this.s),
         since: Number(this.s.since),
-        postsPerPage: Number(this.s.postsPerPage) || 8,
         themeHue: Number(this.s.themeHue),
       }
       s.hitokotoSources = sourceText(s).trim()
