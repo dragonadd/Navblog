@@ -7,6 +7,7 @@ import {
   input,
   signal,
 } from '@angular/core'
+import { ViewportScroller } from '@angular/common'
 import { RouterLink } from '@angular/router'
 import { FormsModule } from '@angular/forms'
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser'
@@ -261,6 +262,7 @@ export class PostPage implements OnDestroy {
   readonly blog = inject(BlogService)
   private toast = inject(ToastService)
   private sanitizer = inject(DomSanitizer)
+  private viewport = inject(ViewportScroller)
   readonly slug = input<string>('')
   readonly meta = computed(() => this.blog.findPost(this.slug()))
   readonly html = signal<SafeHtml>('')
@@ -362,9 +364,9 @@ export class PostPage implements OnDestroy {
       setTimeout(() => {
         if (!this.alive || version !== this.requestVersion) return
         try {
-          document
-            .getElementById(decodeURIComponent(location.hash.slice(1)))
-            ?.scrollIntoView()
+          this.viewport.scrollToAnchor(
+            decodeURIComponent(location.hash.slice(1)),
+          )
         } catch {}
       })
     }

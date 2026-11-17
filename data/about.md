@@ -8,7 +8,7 @@
 
 ## 本站
 
-本站基于 [NavBlog](https://github.com/dragonadd/nav1) 搭建：
+本站基于 [NavBlog](https://github.com/dragonadd/Navblog) 搭建：
 
 - 纯静态部署，文章以 Markdown 形式保存在 Git 仓库中；
 - 可以在线进入 `/admin` 后台写作，保存后自动提交到仓库并触发重新部署；

@@ -28,6 +28,19 @@ export const SIDEBAR_MODULES = [
   { key: 'toc', label: '文章目录' },
 ] as const
 
+export const DESKTOP_SIDEBAR_MODULES = SIDEBAR_MODULES.filter(
+  ({ key }) => key !== 'contact',
+)
+
+const ARTICLE_HIDDEN_MODULES = new Set<SidebarModule>([
+  'profile',
+  'announcement',
+  'stats',
+  'moments',
+  'categories',
+  'tags',
+])
+
 export const THEME_DEFAULTS: Partial<BlogSettings> = {
   appearance: 'system',
   darkStart: 22,
@@ -99,6 +112,12 @@ export function sidebarModuleSide(
   settings: Partial<BlogSettings>,
   key: SidebarModule,
 ): SidebarSide {
+  if (key === 'contact') return 'hidden'
+  if (key === 'toc')
+    return settings.articleToc === false ||
+      settings.sidebarPositions?.toc === 'hidden'
+      ? 'hidden'
+      : 'right'
   return (
     settings.sidebarPositions?.[key] ||
     (settings.sidebarReverse ? 'right' : 'left')
@@ -127,6 +146,8 @@ export function availableSidebarModules(
     categories: boolean
     tags: boolean
     toc: boolean
+    article?: boolean
+    desktop?: boolean
   },
 ): SidebarModule[] {
   const visible: Record<SidebarModule, boolean> = {
@@ -139,9 +160,14 @@ export function availableSidebarModules(
     contact: !!settings.contactEnable,
     categories: settings.sidebarCategories !== false && content.categories,
     tags: settings.sidebarTags !== false && content.tags,
-    toc: settings.articleToc !== false && content.toc,
+    toc: sidebarModuleSide(settings, 'toc') !== 'hidden' && content.toc,
   }
-  return SIDEBAR_MODULES.filter(({ key }) => visible[key]).map(({ key }) => key)
+  return SIDEBAR_MODULES.filter(
+    ({ key }) =>
+      visible[key] &&
+      !(content.desktop && key === 'contact') &&
+      !(content.article && ARTICLE_HIDDEN_MODULES.has(key)),
+  ).map(({ key }) => key)
 }
 
 function normalizeMenuItem(value: unknown, label: string): MenuItem {
@@ -226,6 +252,7 @@ export function normalizeThemeSettings<T extends Partial<BlogSettings>>(
     'sidebarReverse',
     'sidebarMoments',
     'sidebarBlogInfo',
+    'articleToc',
     'rssEnable',
     'rssFullContent',
     'pwaEnable',
@@ -251,13 +278,20 @@ export function normalizeThemeSettings<T extends Partial<BlogSettings>>(
   )
     throw new Error('侧栏位置必须是对象')
   const positions = { ...s.sidebarPositions }
-  for (const { key, label } of SIDEBAR_MODULES) {
+  delete positions.contact
+  for (const { key, label } of DESKTOP_SIDEBAR_MODULES) {
     const side = positions[key] ?? (s.sidebarReverse ? 'right' : 'left')
     if (!['left', 'right', 'hidden'].includes(side))
       throw new Error(`${label}位置只能选择左侧、右侧或隐藏`)
-    positions[key] = side
+    positions[key] =
+      key === 'toc'
+        ? side === 'hidden' || s.articleToc === false
+          ? 'hidden'
+          : 'right'
+        : side
   }
   s.sidebarPositions = positions
+  s.articleToc = positions.toc !== 'hidden'
   Object.assign(s, normalizeBlogInfoSettings(s))
   s.menus = normalizeMenus(s.menus)
   for (const key of [

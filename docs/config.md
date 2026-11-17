@@ -11,9 +11,11 @@
 | `appearance` | `system`（默认，跟随系统）、`light`、`dark`、`auto`（按时段） |
 | `darkStart` / `darkEnd` | 0–23 整数小时，默认 22 / 7；开始包含，结束不包含；支持跨午夜，同起止表示全天浅色。按访客浏览器本地时间判断 |
 | `sidebarReverse` | 兼容旧配置，默认 false；仅作为未设置模块位置时的默认方向，新配置使用 sidebarPositions |
-| `sidebarPositions` | 桌面模块选择 left / right / hidden；支持 profile、announcement、stats、latestPosts、moments、blogInfo、contact、categories、tags、toc。左右都有可见模块时显示三栏，全部隐藏时文章居中并保持常规阅读宽度；手机沿用模块开关和原顺序单列 |
+| `sidebarPositions` | 桌面普通模块选择 left / right / hidden；支持 profile、announcement、stats、latestPosts、moments、blogInfo、categories、tags。toc 固定右侧最上方，只使用 right（显示）或 hidden；旧 left 设置自动改为 right。旧 contact 位置不再使用。左右都有可见模块时显示三栏，全部隐藏时文章居中并保持常规阅读宽度；手机保持单列 |
+| `articleToc` | 默认 true，文章目录显示开关；与 sidebarPositions.toc 同步。隐藏时桌面目录和手机浮动目录都不显示 |
 | `sidebarMoments` | 默认 true，侧栏显示最新发布的一条碎碎念和时间；“查看碎碎念”进入时间线。关闭后手机和桌面都不显示 |
 | `sidebarBlogInfo` | 缺省 false，博客信息模块开关；关闭后手机和桌面都不显示。旧设置文件不会继承已部署的新模块开关 |
+| `contactEnable` / `contactFlip` | 手机联系卡片的显示与翻转开关；桌面不显示联系卡片。原有标题、说明、徽标和联系链接配置继续用于手机 |
 | `beiAn` / `beiAnLink` | ICP 备案号及 HTTP(S) 查询链接；未填不显示，链接默认工信部查询网站 |
 | `beiAnGongan` | 公安备案文字；提取其中的备案数字生成官方查询链接，无数字时链接到查询首页 |
 | `rssEnable` | 默认 true；关闭后构建不输出 rss.xml，HTML 订阅头及侧栏本站 RSS 链接也隐藏 |
@@ -80,7 +82,7 @@ PWA 支持安装参数配置，不提供 Service Worker 或离线缓存；安装
 
 | 字段 | 说明 |
 | --- | --- |
-| `heroEnable` | 是否显示首页顶部横幅 |
+| `heroEnable` | 是否显示首页顶部横幅；开启时横幅固定在背景，左右侧栏与文章列表作为整体随页面向上滚动并覆盖横幅，内容面板使用实色背景，导航保持吸顶 |
 | `heroImage` | 横幅图片地址 |
 | `heroCreditText` / `heroCreditLink` | 横幅右下角署名文字与链接 |
 | `themeHue` | 默认主题色相（0～360）。访客也可以通过调色盘自行调整 |
@@ -143,7 +145,7 @@ https://example.com/quote | data.content
 
 ### 主页公告
 
-后台 **站点设置 → 主页公告** 可配置，公告默认显示在侧栏头像卡片下方，可在“桌面侧栏模块位置”中独立选择左侧或右侧。卡片呈极简便签样式；标题和喇叭图标不显示，正文支持 Markdown 并保留换行，关闭按钮位于右上角。隐藏侧栏的页面也不显示公告。缺省配置不启用，不请求任何外部接口。
+后台 **站点设置 → 主页公告** 可配置，公告默认显示在侧栏头像卡片下方，可在“桌面侧栏模块位置”中独立选择左侧或右侧。卡片呈极简便签样式；标题和喇叭图标不显示，正文支持 Markdown 并保留换行，关闭按钮位于右上角。文章页和隐藏侧栏的页面不显示公告。缺省配置不启用，不请求任何外部接口。
 
 | 字段 | 说明 |
 | --- | --- |
@@ -226,9 +228,9 @@ Markdown 链接和图片仅允许 HTTP(S) 或站内路径，拒绝执行协议�
 
 在后台“顶部菜单显示”控制 `menuHome`、`menuArchive`、`menuCategories`、`menuTags`、`menuMoments`、`menuAbout`，默认都显示；`menuSearch` 和 `mobileMenu` 控制搜索及手机菜单按钮。所有内置开关在手机和桌面一致生效。
 
-额外菜单的 `visible` 默认 true，`blank` 控制新窗口，`children` 是二级菜单数组。父菜单有链接时保留链接和独立展开按钮；没有链接时必须至少有一个子项。父子项均可隐藏，数据不会被删除；全部子项隐藏且父链接为空时不显示该分组。支持 HTTP(S)、站内路径、mailto 和 tel；保存时校验链接，拒绝凭据、危险协议和非空第三层菜单。站内链接按部署 baseHref 解析。顶栏保持 60px 吸顶，菜单过多时在中间区域横向滚动，手机下拉区域可纵向滚动。
+额外菜单的 `visible` 默认 true，`blank` 控制新窗口，`children` 是二级菜单数组。父菜单有链接时保留链接和独立展开按钮；没有链接时必须至少有一个子项。父子项均可隐藏，数据不会被删除；全部子项隐藏且父链接为空时不显示该分组。支持 HTTP(S)、站内路径、mailto 和 tel；保存时校验链接，拒绝凭据、危险协议和非空第三层菜单。站内链接按部署 baseHref 解析。导航与内容面板同宽，桌面最大 1200px，导航高 60px 并保持吸顶；小屏幕自动收缩。菜单过多时在中间区域横向滚动，手机下拉区域可纵向滚动。
 
-侧栏位置示例：`"sidebarPositions": { "profile": "hidden", "announcement": "right", "moments": "left", "toc": "right" }`。`hidden` 只隐藏桌面上的对应模块，手机仍由原有模块开关控制。未指定模块沿用旧 `sidebarReverse`。关闭的模块和首页尚无目录时不占用空栏；桌面没有可见侧栏时保持原双栏文章宽度并居中，文章的“全宽阅读”选项仍可使用完整宽度。
+侧栏位置示例：`"sidebarPositions": { "profile": "hidden", "announcement": "right", "moments": "left", "toc": "right" }`。普通模块的 `hidden` 只影响桌面，手机仍由模块开关控制；目录的 `hidden` 同时关闭手机浮动目录。普通模块未指定位置时沿用旧 `sidebarReverse`，目录始终位于右侧最上方。文章页自动隐藏个人资料、公告、站点统计、最新碎碎念、分类和标签；桌面联系卡片已移除。桌面文章页正文与可见侧栏各自滚动，滚动正文不会移动侧栏。关闭的模块和首页尚无目录时不占用空栏；桌面没有可见侧栏时保持常规阅读宽度并居中，文章的“全宽阅读”选项仍可使用完整宽度。
 
 ### Giscus 评论
 

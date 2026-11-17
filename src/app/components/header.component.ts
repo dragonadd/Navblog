@@ -17,7 +17,7 @@ import { ThemeService } from '../services/theme.service'
   host: { class: 'sticky top-0 z-[60] block w-full shrink-0' },
   imports: [RouterLink, RouterLinkActive, FormsModule],
   template: `
-    <header class="mx-auto w-full max-w-6xl px-3 md:px-4">
+    <header class="fuwari-shell">
       <nav
         class="fuwari-navbar relative grid h-[60px] grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 backdrop-blur-md md:px-4 lg:grid-cols-[minmax(9rem,1fr)_minmax(0,auto)_minmax(9rem,1fr)]"
       >

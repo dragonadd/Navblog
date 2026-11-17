@@ -20,6 +20,12 @@ import { formatMomentDate } from '../../shared/moments'
   ],
   template: `
     <div class="flex flex-col gap-4">
+      @if (has('toc') && settings().articleToc !== false && blog.toc().length) {
+        <section class="fuwari-card hidden p-4 lg:block" aria-label="文章目录">
+          <div class="fuwari-section-title mb-3">目录</div>
+          <app-toc />
+        </section>
+      }
       @if (has('profile')) {
         <div class="fuwari-card p-4">
           <a
@@ -135,7 +141,7 @@ import { formatMomentDate } from '../../shared/moments'
         <app-blog-info />
       }
       @if (has('contact')) {
-        <app-contact-card />
+        <app-contact-card class="lg:hidden" />
       }
       @if (
         has('categories') &&
@@ -174,14 +180,6 @@ import { formatMomentDate } from '../../shared/moments'
                 >#{{ t.name }}</a
               >
             }
-          </div>
-        </div>
-      }
-      @if (has('toc') && settings().articleToc !== false && blog.toc().length) {
-        <div class="hidden lg:sticky lg:top-[76px] lg:block">
-          <div class="fuwari-card max-h-[calc(100vh-100px)] overflow-auto p-4">
-            <div class="fuwari-section-title mb-3">目录</div>
-            <app-toc />
           </div>
         </div>
       }

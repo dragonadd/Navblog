@@ -1,5 +1,6 @@
 import {
   Component,
+  DestroyRef,
   HostListener,
   computed,
   inject,
@@ -8,13 +9,18 @@ import {
 import { BlogService } from '../services/blog.service'
 import { ThemeService } from '../services/theme.service'
 import { TocComponent } from './toc.component'
+import { pageScrollElement } from '../services/page-scroll.service'
 
 @Component({
   selector: 'app-float-buttons',
   imports: [TocComponent],
   template: `
     <div class="fuwari-float-wrap">
-      @if (blog.settings().articleToc !== false && blog.toc().length) {
+      @if (
+        blog.settings().articleToc !== false &&
+        blog.settings().sidebarPositions?.toc !== 'hidden' &&
+        blog.toc().length
+      ) {
         <button
           class="fuwari-float-btn lg:!hidden"
           title="目录"
@@ -44,7 +50,10 @@ import { TocComponent } from './toc.component'
       }
     </div>
     @if (
-      tocOpen() && blog.settings().articleToc !== false && blog.toc().length
+      tocOpen() &&
+      blog.settings().articleToc !== false &&
+      blog.settings().sidebarPositions?.toc !== 'hidden' &&
+      blog.toc().length
     ) {
       <div
         class="fixed inset-0 z-50 bg-black/30 lg:hidden"
@@ -77,9 +86,19 @@ export class FloatButtonsComponent {
       this.blog.settings().floatComment !== false,
   )
 
-  @HostListener('window:scroll')
+  constructor() {
+    const update = () => this.onScroll()
+    document.addEventListener('scroll', update, {
+      capture: true,
+      passive: true,
+    })
+    inject(DestroyRef).onDestroy(() =>
+      document.removeEventListener('scroll', update, true),
+    )
+  }
+
   onScroll() {
-    this.scrolled.set(window.scrollY > 180)
+    this.scrolled.set((pageScrollElement()?.scrollTop ?? window.scrollY) > 180)
   }
 
   @HostListener('document:keydown.escape')
@@ -88,7 +107,7 @@ export class FloatButtonsComponent {
   }
 
   toTop() {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    ;(pageScrollElement() || window).scrollTo({ top: 0, behavior: 'smooth' })
   }
   toComments() {
     document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth' })

@@ -15,7 +15,7 @@ import { LocalDemoService } from '../services/local-demo.service'
 import { normalizeAnnouncementLink } from '../../shared/announcement'
 import {
   normalizeThemeSettings,
-  SIDEBAR_MODULES,
+  DESKTOP_SIDEBAR_MODULES,
 } from '../../shared/theme-settings'
 import type { SidebarModule, SidebarSide } from '../../shared/types'
 import { LoginPasswordComponent } from '../components/login-password.component'
@@ -149,24 +149,31 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
                 桌面侧栏模块位置
               </h3>
               <p class="fuwari-muted mb-3 text-xs">
-                每个模块可选择左侧、右侧或隐藏。此处只控制桌面，手机沿用下方显示开关和原顺序。桌面全部隐藏时文章居中并保持阅读宽度；全宽文章仍可使用完整宽度。
+                普通模块可选择左侧、右侧或隐藏，手机沿用显示开关和原顺序。文章目录固定在右侧最上方，只设置显示或隐藏。桌面全部隐藏时文章居中并保持阅读宽度；全宽文章仍可使用完整宽度。
               </p>
               <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 @for (module of sidebarModules; track module.key) {
                   <label class="fuwari-label"
-                    >{{ module.label }}位置
+                    >{{ module.label }}{{ module.key === 'toc' ? '' : '位置' }}
                     <select
                       class="fuwari-input mt-1"
                       [ngModel]="s.sidebarPositions?.[module.key]"
                       (ngModelChange)="setSidebarPosition(module.key, $event)"
                     >
-                      <option value="left">左侧</option>
-                      <option value="right">右侧</option>
+                      @if (module.key === 'toc') {
+                        <option value="right">显示</option>
+                      } @else {
+                        <option value="left">左侧</option>
+                        <option value="right">右侧</option>
+                      }
                       <option value="hidden">隐藏</option>
                     </select>
                   </label>
                 }
               </div>
+              <p class="fuwari-muted mt-3 text-xs">
+                文章页自动隐藏个人资料、公告、站点统计、最新碎碎念、分类和标签。联系卡片仅在手机侧栏显示。
+              </p>
             </section>
             <div class="md:col-span-2 flex flex-wrap gap-5 text-sm">
               <label class="flex items-center gap-2"
@@ -998,7 +1005,7 @@ import { normalizeCustomResources } from '../../shared/custom-resources'
   `,
 })
 export class SettingsPage {
-  readonly sidebarModules = SIDEBAR_MODULES
+  readonly sidebarModules = DESKTOP_SIDEBAR_MODULES
   readonly dailySources = DAILY_TEXT_SOURCES
   readonly demo = inject(LocalDemoService)
   private store = inject(AdminStore)
@@ -1013,7 +1020,10 @@ export class SettingsPage {
   private target: 'avatar' | 'favicon' | 'heroImage' = 'avatar'
 
   setSidebarPosition(key: SidebarModule, side: SidebarSide) {
-    if (this.s) (this.s.sidebarPositions ||= {})[key] = side
+    if (!this.s || key === 'contact') return
+    ;(this.s.sidebarPositions ||= {})[key] =
+      key === 'toc' && side !== 'hidden' ? 'right' : side
+    if (key === 'toc') this.s.articleToc = side !== 'hidden'
   }
   addSubmenu(item: MenuLink) {
     ;(item.children ||= []).push({
@@ -1076,12 +1086,11 @@ export class SettingsPage {
     { key: 'showListTags', label: '列表显示标签' },
     { key: 'latestPosts', label: '侧栏最新文章' },
     { key: 'sidebarMoments', label: '侧栏碎碎念' },
-    { key: 'contactEnable', label: '显示联系卡片' },
-    { key: 'contactFlip', label: '联系卡片翻转' },
+    { key: 'contactEnable', label: '显示手机联系卡片' },
+    { key: 'contactFlip', label: '手机联系卡片翻转' },
     { key: 'sidebarCategories', label: '侧栏分类' },
     { key: 'sidebarTags', label: '侧栏标签' },
     { key: 'sidebarStats', label: '侧栏统计' },
-    { key: 'articleToc', label: '文章目录' },
     { key: 'floatComment', label: '浮动评论按钮' },
     { key: 'floatDark', label: '浮动深色按钮' },
     { key: 'articleCover', label: '文章封面' },
@@ -1104,7 +1113,7 @@ export class SettingsPage {
   ] as const
   readonly themeTexts = [
     { key: 'profilePath', label: '个人页路径' },
-    { key: 'contactTitle', label: '联系卡片标题' },
+    { key: 'contactTitle', label: '手机联系卡片标题' },
     { key: 'contactDescription', label: '正面说明' },
     { key: 'contactBadge', label: '正面徽标' },
     { key: 'contactUrl', label: '联系链接（https:// 或站内 / 路径）' },

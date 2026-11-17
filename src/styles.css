@@ -622,11 +622,23 @@ a {
     font-size: 1em;
     font-weight: 700;
   }
-  .prose-announcement > :first-child { margin-top: 0; }
-  .prose-announcement :last-child { margin-bottom: 0; }
-  .prose-announcement ul { list-style: disc; padding-left: 1.25rem; }
-  .prose-announcement ol { list-style: decimal; padding-left: 1.25rem; }
-  .prose-announcement li + li { margin-top: 0.25rem; }
+  .prose-announcement > :first-child {
+    margin-top: 0;
+  }
+  .prose-announcement :last-child {
+    margin-bottom: 0;
+  }
+  .prose-announcement ul {
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+  .prose-announcement ol {
+    list-style: decimal;
+    padding-left: 1.25rem;
+  }
+  .prose-announcement li + li {
+    margin-top: 0.25rem;
+  }
   .prose-announcement a {
     color: var(--fuwari-primary);
     text-decoration: underline;
@@ -649,11 +661,27 @@ a {
     background: var(--fuwari-code-bg);
     padding: 0.75rem;
   }
-  .prose-announcement pre code { padding: 0; }
-  .prose-announcement img { max-width: 100%; height: auto; border-radius: 8px; }
-  .prose-announcement table { display: block; max-width: 100%; overflow-x: auto; }
-  .prose-announcement :where(th, td) { border: 1px solid var(--fuwari-border); padding: 0.3rem 0.5rem; }
-  .prose-announcement hr { margin: 0.75rem 0; border-color: var(--fuwari-border); }
+  .prose-announcement pre code {
+    padding: 0;
+  }
+  .prose-announcement img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+  .prose-announcement table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .prose-announcement :where(th, td) {
+    border: 1px solid var(--fuwari-border);
+    padding: 0.3rem 0.5rem;
+  }
+  .prose-announcement hr {
+    margin: 0.75rem 0;
+    border-color: var(--fuwari-border);
+  }
 
   /* ---------- 文章正文 ---------- */
   .prose-blog {
@@ -1021,7 +1049,103 @@ app-sidebar .group:hover img {
   }
 }
 
+/* 导航和内容面板共用宽度，小屏幕保留边距。 */
+.fuwari-shell {
+  width: calc(100% - 1.5rem);
+  max-width: 1200px;
+  margin-inline: auto;
+}
+@media (min-width: 768px) {
+  .fuwari-shell {
+    width: calc(100% - 2rem);
+  }
+}
+
+/* 首页横幅固定在底层，整张内容面板随页面滚动向上覆盖横幅。 */
+.fuwari-hero-layout {
+  --fuwari-hero-height: clamp(min(56vh, 420px), 62vh, min(72vh, 620px));
+  --fuwari-hero-overlap: 42px;
+  isolation: isolate;
+}
+.fuwari-hero-layout > .fuwari-hero {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 0;
+  height: var(--fuwari-hero-height);
+  min-height: 0;
+  max-height: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.fuwari-hero-layout > main {
+  position: relative;
+  z-index: 10;
+  flex: 1 0 auto;
+  min-height: calc(100vh - 60px);
+  min-height: calc(100dvh - 60px);
+  margin-top: calc(
+    var(--fuwari-hero-height) - var(--fuwari-hero-overlap) - 60px
+  );
+  padding-top: 1rem;
+  background-color: var(--fuwari-bg);
+  border: 1px solid var(--fuwari-border);
+  border-radius: 28px 28px 0 0;
+  box-shadow: 0 -12px 32px rgb(15 23 42 / 0.12);
+}
+@media (max-width: 767px) {
+  .fuwari-hero-layout {
+    --fuwari-hero-height: 32vh;
+    --fuwari-hero-overlap: 18px;
+  }
+  .fuwari-hero-layout > main {
+    padding-top: 0.75rem;
+    border-radius: 22px 22px 0 0;
+  }
+}
+
+/* 桌面文章页的正文与两侧栏保留各自的滚动区域。 */
+html:has(.fuwari-fixed-layout),
+body:has(.fuwari-fixed-layout) {
+  overflow: hidden;
+}
+body:has(.fuwari-fixed-layout) {
+  min-height: 0;
+}
+.fuwari-fixed-layout {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.fuwari-fixed-layout > main {
+  min-height: 0;
+  padding-bottom: 0.75rem;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+}
+.fuwari-fixed-layout [data-page-scroll] :is(h1, h2, h3, h4, h5, h6, #comments) {
+  scroll-margin-top: 1rem;
+}
 @media (min-width: 1024px) {
+  .fuwari-fixed-layout > main {
+    overflow: visible;
+  }
+  .fuwari-fixed-layout > main > .grid {
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .fuwari-fixed-layout .fuwari-content-column,
+  .fuwari-fixed-layout .fuwari-sidebar-column {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    scroll-behavior: smooth;
+    padding-bottom: 0.5rem;
+  }
   .fuwari-no-sidebar > .fuwari-content-column {
     width: calc(100% - 280px - 1.5rem);
     margin-inline: auto;
@@ -1038,9 +1162,6 @@ app-sidebar .group:hover img {
         18vw,
         240px
       );
-  }
-  .fuwari-wide {
-    max-width: 90rem;
   }
   .fuwari-sidebar-reverse > .fuwari-sidebar-column {
     order: 2;

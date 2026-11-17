@@ -14,6 +14,7 @@ import { BlogService } from '../src/app/services/blog.service'
 function fixture(withIntersection = true) {
   const keys = [
     'window',
+    'document',
     'requestAnimationFrame',
     'cancelAnimationFrame',
     'IntersectionObserver',
@@ -41,10 +42,17 @@ function fixture(withIntersection = true) {
     },
   }
   const host = {
+    closest() {
+      return scrollRoot
+    },
     querySelector(selector: string) {
       return selector === 'article' ? card : {}
     },
   }
+  let scrollRoot: {
+    clientHeight: number
+    getBoundingClientRect(): { bottom: number }
+  } | null = null
   const target = {
     top: 5000,
     getBoundingClientRect() {
@@ -69,6 +77,7 @@ function fixture(withIntersection = true) {
   }
   const globals: Record<string, unknown> = {
     window: viewport,
+    document: viewport,
     requestAnimationFrame(callback: FrameRequestCallback) {
       const id = ++frameId
       frames.set(id, callback)
@@ -165,6 +174,16 @@ function fixture(withIntersection = true) {
       resizeCallback()
       flush()
     },
+    useScrollRoot(height: number) {
+      scrollRoot = {
+        clientHeight: height,
+        getBoundingClientRect: () => ({ bottom: 400 }),
+      }
+      listeners.get('resize')?.()
+      flush()
+      posts.set([...posts()])
+      flush()
+    },
   }
 }
 
@@ -179,6 +198,20 @@ test('自动加载按屏幕可见范围显示，不受分页篇数影响', () =>
     assert.equal(f.list.visible().length, 7)
     f.resize(360, 400)
     assert.equal(f.list.visible().length, 7)
+  } finally {
+    f.destroy()
+  }
+})
+
+test('独立滚动区域按自身可见高度分批加载', () => {
+  const f = fixture()
+  try {
+    f.useScrollRoot(300)
+    assert.equal(f.list.batchSize(), 2)
+    assert.equal(f.list.visible().length, 2)
+    f.list.more()
+    f.flush()
+    assert.equal(f.list.visible().length, 4)
   } finally {
     f.destroy()
   }

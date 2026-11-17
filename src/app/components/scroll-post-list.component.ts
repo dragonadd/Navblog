@@ -63,7 +63,10 @@ export class ScrollPostListComponent implements AfterViewInit, OnDestroy {
   }
   ngAfterViewInit() {
     window.addEventListener('resize', this.onViewportChange)
-    window.addEventListener('scroll', this.onViewportChange, { passive: true })
+    document.addEventListener('scroll', this.onViewportChange, {
+      capture: true,
+      passive: true,
+    })
     if (typeof ResizeObserver !== 'undefined') {
       this.resizeObserver = new ResizeObserver(this.onViewportChange)
       this.resizeObserver.observe(this.host.nativeElement)
@@ -77,14 +80,15 @@ export class ScrollPostListComponent implements AfterViewInit, OnDestroy {
       this.observer?.disconnect()
       this.observer = undefined
       const host = this.host.nativeElement
+      const scrollRoot = host.closest<HTMLElement>('[data-page-scroll]')
+      const viewportHeight = scrollRoot?.clientHeight || window.innerHeight
+      const viewportBottom =
+        scrollRoot?.getBoundingClientRect().bottom ?? window.innerHeight
       const card = host.querySelector<HTMLElement>('article')
       const list = host.querySelector<HTMLElement>('app-post-list > div')
       const height = card?.getBoundingClientRect().height || 240
       const gap = list ? parseFloat(getComputedStyle(list).rowGap) || 0 : 16
-      const batchSize = Math.max(
-        1,
-        Math.ceil(window.innerHeight / (height + gap)),
-      )
+      const batchSize = Math.max(1, Math.ceil(viewportHeight / (height + gap)))
       this.batchSize.set(batchSize)
       // 放大窗口时补足可见范围，缩小时保留已经加载的文章。
       if (this.count() < batchSize) {
@@ -99,7 +103,7 @@ export class ScrollPostListComponent implements AfterViewInit, OnDestroy {
       )
         return
       // 快速滚动可能跨过整个加载按钮，位置经过视口时仍继续追加。
-      if (target.getBoundingClientRect().top <= window.innerHeight + 120) {
+      if (target.getBoundingClientRect().top <= viewportBottom + 120) {
         this.more()
         return
       }
@@ -111,7 +115,7 @@ export class ScrollPostListComponent implements AfterViewInit, OnDestroy {
             this.more()
           }
         },
-        { rootMargin: '0px 0px 120px 0px' },
+        { root: scrollRoot, rootMargin: '0px 0px 120px 0px' },
       )
       this.observer = observer
       observer.observe(target)
@@ -127,6 +131,6 @@ export class ScrollPostListComponent implements AfterViewInit, OnDestroy {
     this.observer?.disconnect()
     this.resizeObserver?.disconnect()
     window.removeEventListener('resize', this.onViewportChange)
-    window.removeEventListener('scroll', this.onViewportChange)
+    document.removeEventListener('scroll', this.onViewportChange, true)
   }
 }

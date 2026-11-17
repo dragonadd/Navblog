@@ -128,10 +128,9 @@ test('旧侧栏方向迁移为各模块位置，显式覆盖生效且不修改�
     latestPosts: 'left',
     moments: 'left',
     blogInfo: 'left',
-    contact: 'left',
     categories: 'left',
     tags: 'left',
-    toc: 'left',
+    toc: 'right',
   }
   assert.deepEqual(
     normalize({ sidebarReverse: false, sidebarPositions: undefined })
@@ -146,7 +145,6 @@ test('旧侧栏方向迁移为各模块位置，显式覆盖生效且不修改�
     latestPosts: 'right',
     moments: 'right',
     blogInfo: 'right',
-    contact: 'right',
     categories: 'right',
     tags: 'right',
     toc: 'right',
@@ -162,10 +160,39 @@ test('旧侧栏方向迁移为各模块位置，显式覆盖生效且不修改�
   assert.throws(() => normalize({ sidebarPositions: [] }), /位置|侧栏/)
 })
 
+test('文章目录固定在右侧，旧左侧设置自动迁移，显示与隐藏保持同步', () => {
+  for (const side of [undefined, 'left', 'right']) {
+    const settings = normalize({
+      articleToc: true,
+      sidebarReverse: false,
+      sidebarPositions: { toc: side },
+    })
+    assert.equal(settings.sidebarPositions.toc, 'right')
+    assert.equal(settings.articleToc, true)
+  }
+  const hidden = normalize({
+    articleToc: true,
+    sidebarPositions: { toc: 'hidden' },
+  })
+  assert.equal(hidden.articleToc, false)
+  const disabled = normalize({
+    articleToc: false,
+    sidebarPositions: { toc: 'right' },
+  })
+  assert.equal(disabled.sidebarPositions.toc, 'hidden')
+  const oldFlag = normalize({
+    articleToc: 'false',
+    sidebarPositions: { toc: 'left' },
+  })
+  assert.equal(oldFlag.articleToc, false)
+  assert.equal(oldFlag.sidebarPositions.toc, 'hidden')
+})
+
 test('桌面模块支持隐藏，全部隐藏时使用居中阅读布局，手机与全宽文章行为保留', () => {
   const original = { profile: 'hidden', stats: 'hidden', contact: 'right' }
   const normalized = normalize({ sidebarPositions: original })
   assert.equal(normalized.sidebarPositions.profile, 'hidden')
+  assert.equal(normalized.sidebarPositions.contact, undefined)
   assert.deepEqual(original, {
     profile: 'hidden',
     stats: 'hidden',
@@ -221,6 +248,91 @@ test('桌面模块支持隐藏，全部隐藏时使用居中阅读布局，手�
     events.next(new NavigationEnd(1, '/posts/full', '/posts/full'))
     assert.equal(app.hideSidebar(), true)
     assert.equal(app.noSidebar(), false)
+  } finally {
+    events.complete()
+    injector.destroy()
+  }
+})
+
+test('文章页隐藏六个模块，桌面移除联系卡片，返回首页及切换手机时按页面恢复模块', () => {
+  const settings = signal(
+    normalize({
+      sidebarPositions: {
+        latestPosts: 'right',
+        blogInfo: 'right',
+        contact: 'left',
+      },
+      announcementEnable: true,
+      announcementText: '公告内容',
+      announcementClosable: false,
+      sidebarStats: true,
+      sidebarMoments: true,
+      sidebarCategories: true,
+      sidebarTags: true,
+      latestPosts: true,
+      sidebarBlogInfo: true,
+      contactEnable: true,
+      contactTitle: '手机联系',
+      articleToc: true,
+    }),
+  )
+  const events = new Subject<any>()
+  const toc = signal<any[]>([])
+  const hidden = [
+    'profile',
+    'announcement',
+    'stats',
+    'moments',
+    'categories',
+    'tags',
+  ]
+  const injector = createEnvironmentInjector(
+    [
+      {
+        provide: BlogService,
+        useValue: {
+          config: { baseHref: '/blog/' },
+          settings,
+          categories: signal([{ name: '分类', count: 1 }]),
+          tags: signal([{ name: '标签', count: 1 }]),
+          toc,
+          findPost: () => ({ hideSidebar: false }),
+        },
+      },
+      { provide: ThemeService, useValue: {} },
+      { provide: Router, useValue: { events } },
+      {
+        provide: AnnouncementStateService,
+        useValue: { dismissed: signal('') },
+      },
+    ],
+    null as any,
+  )
+  try {
+    const app = injector.runInContext(() => new AppComponent())
+    assert.ok(hidden.every((key) => app.sidebarModules().includes(key as any)))
+    assert.ok(!app.sidebarModules().includes('contact'))
+    assert.equal(settings().sidebarPositions.contact, undefined)
+    assert.equal(settings().contactEnable, true)
+    assert.equal(settings().contactTitle, '手机联系')
+    events.next(new NavigationEnd(1, '/posts/example', '/posts/example'))
+    toc.set([{ id: 'first', text: '第一节', level: 2 }])
+    assert.deepEqual(app.sidebarModules(), ['latestPosts', 'blogInfo', 'toc'])
+    assert.deepEqual(app.leftModules(), [])
+    assert.deepEqual(app.rightModules(), ['toc', 'latestPosts', 'blogInfo'])
+    assert.equal(app.wideLayout(), false)
+    media.matches = false
+    mediaListeners.forEach((listener) => listener())
+    assert.ok(hidden.every((key) => !app.sidebarModules().includes(key as any)))
+    assert.ok(app.sidebarModules().includes('contact'))
+    assert.equal(app.fixedLayout(), false)
+    events.next(new NavigationEnd(2, '/', '/'))
+    toc.set([])
+    assert.ok(hidden.every((key) => app.sidebarModules().includes(key as any)))
+    assert.ok(app.sidebarModules().includes('contact'))
+    media.matches = true
+    mediaListeners.forEach((listener) => listener())
+    assert.ok(!app.sidebarModules().includes('contact'))
   } finally {
     events.complete()
     injector.destroy()
@@ -489,14 +601,15 @@ test('实际布局分配模块，关闭唯一公告移除空栏，目录仅在�
     mediaListeners.forEach((listener) => listener())
     assert.equal(app.wideLayout?.(), false)
     toc.set([{ id: 'one', text: '第一节', level: 2 }])
-    assert.deepEqual(app.rightModules?.(), ['profile', 'toc'])
+    assert.deepEqual(app.rightModules?.(), ['toc', 'profile'])
     settings.set(
       normalize({
         ...settings(),
         sidebarPositions: { ...settings().sidebarPositions, toc: 'left' },
       }),
     )
-    assert.equal(app.wideLayout?.(), true)
+    assert.equal(app.wideLayout?.(), false)
+    assert.deepEqual(app.rightModules?.(), ['toc', 'profile'])
     events.next(new NavigationEnd(1, '/posts/full', '/posts/full'))
     assert.equal(app.hideSidebar(), true)
     assert.equal(app.wideLayout?.(), false)
@@ -557,6 +670,7 @@ test('设置保存保留无父链接的分组、隐藏菜单和独立侧栏位�
   try {
     const page = injector.runInContext(() => new SettingsPage())
     await new Promise((resolve) => setTimeout(resolve, 0))
+    assert.ok(page.sidebarModules.every(({ key }) => key !== 'contact'))
     await page.save()
     assert.deepEqual(errors, [])
     assert.deepEqual(

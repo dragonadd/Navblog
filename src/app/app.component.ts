@@ -27,10 +27,15 @@ import {
     ToastComponent,
   ],
   template: `
-    <div id="theme-fuwari" class="fuwari-bg flex min-h-screen flex-col">
+    <div
+      id="theme-fuwari"
+      class="fuwari-bg flex min-h-screen flex-col"
+      [class.fuwari-fixed-layout]="fixedLayout()"
+      [class.fuwari-hero-layout]="showHero()"
+    >
       <app-header />
       @if (isAdmin()) {
-        <main class="mx-auto w-full max-w-6xl flex-1 px-3 pt-4 pb-12 md:px-4">
+        <main class="fuwari-shell flex-1 px-3 pt-4 pb-12 md:px-4">
           <router-outlet />
         </main>
       } @else {
@@ -50,10 +55,9 @@ import {
           </div>
         }
         <main
-          class="mx-auto w-full max-w-6xl flex-1 px-3 pb-12 md:px-4"
+          class="fuwari-shell flex-1 px-3 pb-12 md:px-4"
           [class.fuwari-main-overlap]="showHero()"
           [class.fuwari-main-plain]="!showHero()"
-          [class.fuwari-wide]="wideLayout()"
         >
           <div
             class="grid grid-cols-[minmax(0,1fr)] gap-4 lg:gap-6"
@@ -74,6 +78,7 @@ import {
                   <aside
                     class="fuwari-sidebar-column order-2 min-w-0 lg:order-1"
                     aria-label="左侧栏"
+                    [attr.tabindex]="fixedLayout() ? 0 : null"
                   >
                     <app-sidebar [modules]="leftModules()" />
                   </aside>
@@ -82,6 +87,7 @@ import {
                   <aside
                     class="fuwari-sidebar-column order-3 min-w-0"
                     aria-label="右侧栏"
+                    [attr.tabindex]="fixedLayout() ? 0 : null"
                   >
                     <app-sidebar [modules]="rightModules()" />
                   </aside>
@@ -95,13 +101,27 @@ import {
                 </aside>
               }
             }
-            <div class="fuwari-content-column order-1 min-w-0 lg:order-2">
+            <div
+              class="fuwari-content-column order-1 min-w-0 lg:order-2"
+              [attr.data-page-scroll]="fixedLayout() ? '' : null"
+              [attr.tabindex]="fixedLayout() ? 0 : null"
+              [attr.role]="fixedLayout() ? 'region' : null"
+              [attr.aria-label]="fixedLayout() ? '正文内容' : null"
+            >
               <router-outlet />
+              @if (fixedLayout()) {
+                <app-footer />
+              }
             </div>
           </div>
+          @if (showHero()) {
+            <app-footer />
+          }
         </main>
       }
-      <app-footer />
+      @if (!fixedLayout() && !showHero()) {
+        <app-footer />
+      }
       @if (!isAdmin()) {
         <app-float-buttons />
       }
@@ -129,6 +149,10 @@ export class AppComponent {
     const path = this.url().split(/[?#]/)[0] || '/'
     return !!this.settings().heroEnable && /^(\/|\/page\/\d+\/?)$/.test(path)
   })
+  readonly isArticle = computed(() =>
+    /^\/posts\/[^/?#]+\/?$/.test(this.url().split(/[?#]/)[0]),
+  )
+  readonly fixedLayout = computed(() => this.desktop() && this.isArticle())
   readonly hideSidebar = computed(() => {
     const match = this.url().match(/^\/posts\/([^/?#]+)/)
     if (!match) return false
@@ -150,6 +174,8 @@ export class AppComponent {
       categories: this.blog.categories().length > 0,
       tags: this.blog.tags().length > 0,
       toc: this.blog.toc().length > 0,
+      article: this.isArticle(),
+      desktop: this.desktop(),
     })
   })
   readonly leftModules = computed(() =>
@@ -158,9 +184,9 @@ export class AppComponent {
     ),
   )
   readonly rightModules = computed(() =>
-    this.sidebarModules().filter(
-      (key) => sidebarModuleSide(this.settings(), key) === 'right',
-    ),
+    this.sidebarModules()
+      .filter((key) => sidebarModuleSide(this.settings(), key) === 'right')
+      .sort((a, b) => Number(b === 'toc') - Number(a === 'toc')),
   )
   readonly wideLayout = computed(
     () =>

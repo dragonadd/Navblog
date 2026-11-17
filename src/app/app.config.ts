@@ -8,10 +8,13 @@ import {
   withInMemoryScrolling,
 } from '@angular/router'
 import { routes } from './app.routes'
+import { ViewportScroller } from '@angular/common'
+import { PageViewportScroller } from './services/page-scroll.service'
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZonelessChangeDetection(),
+    { provide: ViewportScroller, useClass: PageViewportScroller },
     provideRouter(
       routes,
       withComponentInputBinding(),

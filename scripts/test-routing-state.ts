@@ -8,6 +8,7 @@ import {
   ɵEffectScheduler,
 } from '@angular/core'
 import { NavigationEnd, Router } from '@angular/router'
+import { ViewportScroller } from '@angular/common'
 import { DomSanitizer } from '@angular/platform-browser'
 import { Subject } from 'rxjs'
 import { AppComponent } from '../src/app/app.component'
@@ -23,12 +24,12 @@ const originals = new Map(
     Object.getOwnPropertyDescriptor(globalThis, k),
   ]),
 )
-function globals(pathname: string) {
+function globals(pathname: string, desktop = true) {
   Object.defineProperty(globalThis, 'window', {
     configurable: true,
     value: {
       matchMedia: () => ({
-        matches: true,
+        matches: desktop,
         addEventListener() {},
         removeEventListener() {},
       }),
@@ -50,18 +51,22 @@ afterEach(() => {
   }
 })
 
-test('admin只匹配后台首段，部署子路径不影响首页或文章布局', () => {
-  for (const [base, path, admin, hero] of [
-    ['/', '/posts/admin', false, false],
-    ['/', '/categories/admin', false, false],
-    ['/', '/tags/admin', false, false],
-    ['/', '/admin/settings', true, false],
-    ['/blog/', '/blog/admin/login', true, false],
-    ['/admin/', '/admin/', false, true],
-    ['/blog/', '/blog/page/2', false, true],
-    ['/blog/', '/blog/posts/admin', false, false],
+test('首页和分页整体叠加滚动，桌面文章独立滚动，部署子路径和后台匹配正确', () => {
+  for (const [base, path, admin, hero, fixed, desktop] of [
+    ['/', '/', false, true, false, true],
+    ['/', '/page/2', false, true, false, true],
+    ['/', '/posts/admin', false, false, true, true],
+    ['/', '/categories/admin', false, false, false, true],
+    ['/', '/tags/admin', false, false, false, true],
+    ['/', '/admin/settings', true, false, false, true],
+    ['/blog/', '/blog/admin/login', true, false, false, true],
+    ['/admin/', '/admin/', false, true, false, true],
+    ['/blog/', '/blog/page/2', false, true, false, true],
+    ['/blog/', '/blog/posts/admin', false, false, true, true],
+    ['/', '/', false, true, false, false],
+    ['/', '/posts/admin', false, false, false, false],
   ] as const) {
-    globals(path)
+    globals(path, desktop)
     const events = new Subject<any>()
     const injector = createEnvironmentInjector(
       [
@@ -86,10 +91,16 @@ test('admin只匹配后台首段，部署子路径不影响首页或文章布局
       const app = injector.runInContext(() => new AppComponent())
       assert.equal(app.isAdmin(), admin, path)
       assert.equal(app.showHero(), hero, path)
+      assert.equal(app.fixedLayout(), fixed, path)
       events.next(new NavigationEnd(1, '/posts/admin?x=1', '/posts/admin?x=1'))
       assert.equal(app.isAdmin(), false)
       events.next(new NavigationEnd(2, '/admin/settings', '/admin/settings'))
       assert.equal(app.isAdmin(), true)
+      assert.equal(app.fixedLayout(), false)
+      events.next(new NavigationEnd(3, '/', '/'))
+      app.settings.set({ ...app.settings(), heroEnable: false })
+      assert.equal(app.showHero(), false)
+      assert.equal(app.fixedLayout(), false)
     } finally {
       events.complete()
       injector.destroy()
@@ -97,8 +108,10 @@ test('admin只匹配后台首段，部署子路径不影响首页或文章布局
   }
 })
 
-test('文章路由复用至404时清除正文目录并使旧加载失效', async () => {
+test('文章锚点通过页面滚动服务恢复，路由复用至404清除目录并使旧加载失效', async () => {
   globals('/posts/first')
+  location.hash = '#' + encodeURIComponent('第一节')
+  const anchors: string[] = []
   const slug = signal('first'),
     toc = signal<any[]>([]),
     comments = signal(false)
@@ -135,6 +148,10 @@ test('文章路由复用至404时清除正文目录并使旧加载失效', async
       },
       { provide: ToastService, useValue: {} },
       {
+        provide: ViewportScroller,
+        useValue: { scrollToAnchor: (id: string) => anchors.push(id) },
+      },
+      {
         provide: DomSanitizer,
         useValue: { bypassSecurityTrustHtml: (html: string) => html },
       },
@@ -150,6 +167,9 @@ test('文章路由复用至404时清除正文目录并使旧加载失效', async
     await Promise.resolve()
     scheduler.flush()
     assert.equal(toc().length, 1)
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    assert.deepEqual(anchors, ['第一节'])
+    location.hash = ''
     slug.set('missing')
     scheduler.flush()
     assert.deepEqual(toc(), [])

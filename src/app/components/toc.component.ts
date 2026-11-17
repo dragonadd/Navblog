@@ -1,5 +1,14 @@
-import { Component, OnDestroy, OnInit, inject, output, signal } from '@angular/core'
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  inject,
+  output,
+  signal,
+} from '@angular/core'
+import { ViewportScroller } from '@angular/common'
 import { BlogService } from '../services/blog.service'
+import { pageScrollElement } from '../services/page-scroll.service'
 
 @Component({
   selector: 'app-toc',
@@ -7,40 +16,53 @@ import { BlogService } from '../services/blog.service'
     <nav class="fuwari-toc max-h-[60vh] overflow-y-auto">
       @for (item of blog.toc(); track item.id) {
         <a
-          [href]="'#' + item.id"
+          [href]="anchorHref(item.id)"
           [class.active]="active() === item.id"
           [style.padding-left.rem]="0.6 + (item.level - 2) * 0.9"
           (click)="go($event, item.id)"
-        >{{ item.text }}</a>
+          >{{ item.text }}</a
+        >
       }
     </nav>
   `,
 })
 export class TocComponent implements OnInit, OnDestroy {
   readonly blog = inject(BlogService)
+  private readonly viewport = inject(ViewportScroller)
   readonly active = signal('')
   readonly navigate = output<void>()
+  private timer?: ReturnType<typeof setTimeout>
   private onScroll = () => {
+    const threshold =
+      (pageScrollElement()?.getBoundingClientRect().top ?? 80) + 40
     let current = ''
     for (const item of this.blog.toc()) {
       const el = document.getElementById(item.id)
-      if (el && el.getBoundingClientRect().top < 120) current = item.id
+      if (el && el.getBoundingClientRect().top < threshold) current = item.id
     }
     this.active.set(current)
   }
 
   ngOnInit() {
-    window.addEventListener('scroll', this.onScroll, { passive: true })
-    setTimeout(this.onScroll, 100)
+    document.addEventListener('scroll', this.onScroll, {
+      capture: true,
+      passive: true,
+    })
+    this.timer = setTimeout(this.onScroll, 100)
   }
   ngOnDestroy() {
-    window.removeEventListener('scroll', this.onScroll)
+    document.removeEventListener('scroll', this.onScroll, true)
+    clearTimeout(this.timer)
+  }
+
+  anchorHref(id: string) {
+    return location.pathname + location.search + '#' + encodeURIComponent(id)
   }
 
   go(e: Event, id: string) {
     e.preventDefault()
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    history.replaceState(null, '', location.pathname + location.search + '#' + id)
+    this.viewport.scrollToAnchor(id, { behavior: 'smooth' })
+    history.replaceState(history.state, '', this.anchorHref(id))
     this.navigate.emit()
   }
 }
