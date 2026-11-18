@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="默认头像">
+  <defs>
+    <linearGradient id="avatarBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d0bd55" />
+      <stop offset="1" stop-color="#9a861c" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="26" fill="url(#avatarBg)" />
+  <path d="M40 90V38h9l30 31V38h9v52h-9L49 59v31z" fill="#fff" />
+</svg>

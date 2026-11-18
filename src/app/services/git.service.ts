@@ -1,0 +1,602 @@
+// Git 平台 API（GitHub / Gitee / GitLab）
+// 移植并简化自 https://github.com/xjh22222228/nav src/api/index.ts (GPL-3.0)
+import { Injectable, inject, signal } from '@angular/core'
+import { Base64 } from 'js-base64'
+import { BlogService } from './blog.service'
+import { LocalDemoService } from './local-demo.service'
+import { authIdentity, validateTokenText } from '../../shared/auth'
+
+export type Provider = 'github' | 'gitee' | 'gitlab'
+
+export interface RepoInfo {
+  provider: Provider
+  host: string
+  owner: string
+  repo: string
+  branch: string
+  projectId: string
+}
+
+export interface FileChange {
+  path: string
+  /** 文本内容；null 表示删除 */
+  content: string | null
+  /** 已经是 base64（图片等二进制） */
+  base64?: boolean
+  /** 只对需避免丢更新的单文件使用；null 表示读取时不存在。 */
+  expectedSha?: string | null
+  expectedLastCommit?: string
+  expectedContent?: string | null
+}
+
+const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
+
+export function parseRepo(url: string, defaultBranch = 'main'): RepoInfo {
+  let u: URL
+  try {
+    u = new URL(url)
+  } catch {
+    return {
+      provider: 'github',
+      host: 'github.com',
+      owner: '',
+      repo: '',
+      branch: defaultBranch,
+      projectId: '',
+    }
+  }
+  const host = u.hostname
+  const provider: Provider = host.includes('github')
+    ? 'github'
+    : host.includes('gitee')
+      ? 'gitee'
+      : 'gitlab'
+  const [owner = '', repo = ''] = u.pathname
+    .replace(/^\/|\.git$|\/$/g, '')
+    .split('/')
+  return {
+    provider,
+    host,
+    owner,
+    repo,
+    branch: u.searchParams.get('branch') || defaultBranch,
+    projectId: u.searchParams.get('projectId') || '',
+  }
+}
+
+@Injectable({ providedIn: 'root' })
+export class GitService {
+  private blog = inject(BlogService)
+  private demo = inject(LocalDemoService)
+  readonly repo = parseRepo(
+    this.blog.config.gitRepoUrl,
+    this.blog.config.branch || 'main',
+  )
+  readonly imageRepo = this.blog.config.imageRepoUrl
+    ? parseRepo(this.blog.config.imageRepoUrl, 'image')
+    : { ...this.repo, branch: 'image' }
+  readonly sessionKey = `navblog:token:v1:${new URL(document.baseURI).pathname}:${authIdentity(this.repo)}`
+  readonly token = signal<string>(this.readToken())
+  readonly user = signal<{ name: string; avatar: string } | null>(null)
+  readonly busy = signal(false)
+  private loginVersion = 0
+
+  private readToken(): string {
+    try {
+      localStorage.removeItem('token')
+    } catch {}
+    try {
+      return sessionStorage.getItem(this.sessionKey) || ''
+    } catch {
+      return ''
+    }
+  }
+
+  get providerName() {
+    return { github: 'GitHub', gitee: 'Gitee', gitlab: 'GitLab' }[
+      this.repo.provider
+    ]
+  }
+
+  get tokenHelpUrl() {
+    return {
+      github:
+        'https://github.com/settings/tokens/new?scopes=repo&description=blog-admin',
+      gitee: 'https://gitee.com/profile/personal_access_tokens',
+      gitlab: `https://${this.repo.host}/-/user_settings/personal_access_tokens`,
+    }[this.repo.provider]
+  }
+
+  private apiBase(r: RepoInfo = this.repo) {
+    if (r.provider === 'github') return 'https://api.github.com'
+    if (r.provider === 'gitee') return 'https://gitee.com/api/v5'
+    return `https://${r.host}/api/v4`
+  }
+
+  private projectPath(r: RepoInfo) {
+    return r.projectId || encodeURIComponent(`${r.owner}/${r.repo}`)
+  }
+
+  private async request<T = any>(
+    method: string,
+    path: string,
+    body?: unknown,
+    r: RepoInfo = this.repo,
+    token = this.token(),
+  ): Promise<T> {
+    if (this.demo.active()) throw new Error('本地演示模式不会访问 Git 仓库')
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json;charset=utf-8',
+    }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    if (r.provider === 'github')
+      headers['Accept'] = 'application/vnd.github.v3+json'
+    const res = await fetch(this.apiBase(r) + path, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      cache: 'no-store',
+    })
+    const text = await res.text()
+    let data: any = text
+    try {
+      data = text ? JSON.parse(text) : null
+    } catch {}
+    if (!res.ok) {
+      const msg = data?.message || data?.error || res.statusText
+      const err: any = new Error(
+        `${res.status} ${typeof msg === 'string' ? msg : JSON.stringify(msg)}（${method} ${path.split('?')[0]}）`,
+      )
+      err.status = res.status
+      throw err
+    }
+    return data as T
+  }
+
+  isLogin() {
+    return !!this.token()
+  }
+  cancelPendingLogin() {
+    ++this.loginVersion
+  }
+
+  async validateToken(token: string) {
+    token = validateTokenText(token)
+    const r = this.repo
+    if (
+      !r.owner ||
+      !r.repo ||
+      !r.branch ||
+      (r.provider === 'github' && r.host !== 'github.com') ||
+      (r.provider === 'gitee' && r.host !== 'gitee.com')
+    )
+      throw new Error('请先配置正确的 Git 仓库地址')
+    const data = await this.request('GET', '/user', undefined, r, token)
+    const name = data.login || data.username
+    if (typeof name !== 'string' || !name) throw new Error('Token 身份校验失败')
+    const repo = await this.request(
+      'GET',
+      r.provider === 'gitlab'
+        ? `/projects/${this.projectPath(r)}`
+        : `/repos/${r.owner}/${r.repo}`,
+      undefined,
+      r,
+      token,
+    )
+    const writable =
+      r.provider === 'gitlab'
+        ? Math.max(
+            repo.permissions?.project_access?.access_level || 0,
+            repo.permissions?.group_access?.access_level || 0,
+          ) >= 30
+        : repo.permissions?.push === true
+    if (!writable || repo.archived)
+      throw new Error(
+        `Token 用户没有仓库 ${r.owner}/${r.repo} 的写权限，或仓库已归档`,
+      )
+    return { name, avatar: data.avatar_url }
+  }
+
+  /** 两种登录入口共用校验，会话存储失败时不留下登录状态。 */
+  async login(token: string) {
+    const version = ++this.loginVersion
+    token = validateTokenText(token)
+    const user = await this.validateToken(token)
+    if (version !== this.loginVersion) throw new Error('登录已取消')
+    try {
+      sessionStorage.setItem(this.sessionKey, token)
+    } catch {
+      throw new Error('无法保存当前标签页会话，请允许 sessionStorage 后重试')
+    }
+    this.token.set(token)
+    this.user.set(user)
+  }
+
+  async fetchUser() {
+    if (this.demo.active()) return
+    if (!this.token() || this.user()) return
+    const token = this.token(),
+      version = this.loginVersion
+    try {
+      const user = await this.validateToken(token)
+      if (this.token() === token && this.loginVersion === version)
+        this.user.set(user)
+    } catch (e: any) {
+      if (
+        e.status === 401 &&
+        this.token() === token &&
+        this.loginVersion === version
+      )
+        this.logout()
+    }
+  }
+
+  logout() {
+    ++this.loginVersion
+    try {
+      sessionStorage.removeItem(this.sessionKey)
+    } catch {}
+    try {
+      localStorage.removeItem('token')
+    } catch {}
+    this.token.set('')
+    this.user.set(null)
+  }
+
+  /** 读取仓库文件，不存在返回 null */
+  async getFile(
+    path: string,
+    r: RepoInfo = this.repo,
+  ): Promise<{ content: string; sha: string; lastCommit?: string } | null> {
+    if (this.demo.active()) {
+      let content = this.demo.read(path)
+      if (content === undefined) {
+        if (path === 'data/settings.json')
+          content = JSON.stringify(this.blog.settings())
+        else if (path === 'data/posts.json')
+          content = JSON.stringify(this.blog.allPosts())
+        else if (path === 'data/moments.json')
+          content = JSON.stringify(this.blog.getMoments())
+        else if (path === 'data/about.md')
+          content = await this.blog.getAboutSource()
+        else if (/^data\/posts\/[^/]+\.md$/.test(path)) {
+          const slug = path.slice(11, -3)
+          content = this.blog.allPosts().some((p) => p.slug === slug)
+            ? await this.blog.getPostSource(slug)
+            : null
+        } else throw new Error('本地演示中无法读取此文件')
+      }
+      return content === null ? null : { content, sha: 'local-demo' }
+    }
+    try {
+      if (r.provider === 'gitlab') {
+        const d = await this.request(
+          'GET',
+          `/projects/${this.projectPath(r)}/repository/files/${encodeURIComponent(path)}?ref=${encodeURIComponent(r.branch)}`,
+          undefined,
+          r,
+        )
+        return {
+          content: Base64.decode(d.content),
+          sha: d.blob_id,
+          ...(d.last_commit_id ? { lastCommit: d.last_commit_id } : {}),
+        }
+      }
+      const d = await this.request(
+        'GET',
+        `/repos/${r.owner}/${r.repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(r.branch)}&t=${Date.now()}`,
+        undefined,
+        r,
+      )
+      if (Array.isArray(d) || !d) return null
+      // GitHub 对大于 1MB 的文件 content 为空，改用 blob 接口
+      if (!d.content && d.sha && r.provider === 'github') {
+        const blob = await this.request(
+          'GET',
+          `/repos/${r.owner}/${r.repo}/git/blobs/${d.sha}`,
+          undefined,
+          r,
+        )
+        return { content: Base64.decode(blob.content), sha: d.sha }
+      }
+      return { content: Base64.decode(d.content || ''), sha: d.sha }
+    } catch (e: any) {
+      if (e.status === 404) return null
+      throw e
+    }
+  }
+
+  /** 一次提交多个文件（GitHub/GitLab 为单次提交，Gitee 逐个提交） */
+  async commit(
+    changes: FileChange[],
+    message: string,
+    r: RepoInfo = this.repo,
+  ) {
+    if (this.demo.active()) {
+      this.demo.save(changes)
+      this.blog.refreshDemo()
+      return
+    }
+    this.busy.set(true)
+    try {
+      if (
+        r.provider === 'github' &&
+        changes.length === 1 &&
+        changes[0].expectedSha !== undefined
+      ) {
+        const c = changes[0]
+        const old = await this.getFile(c.path, r)
+        this.assertVersion(c, old)
+        if (old && !old.sha)
+          throw new Error('无法获取文件 SHA，请重新读取后重试')
+        if (c.content === null && !old)
+          throw new Error('文件已移除，请刷新状态')
+        await this.request(
+          c.content === null ? 'DELETE' : 'PUT',
+          `/repos/${r.owner}/${r.repo}/contents/${c.path.split('/').map(encodeURIComponent).join('/')}`,
+          {
+            message,
+            branch: r.branch,
+            ...(c.content === null
+              ? {}
+              : { content: c.base64 ? c.content : Base64.encode(c.content) }),
+            ...(old ? { sha: old.sha } : {}),
+          },
+          r,
+        )
+      } else if (r.provider === 'github')
+        await this.commitGitHub(changes, message, r)
+      else if (r.provider === 'gitlab')
+        await this.commitGitLab(changes, message, r)
+      else await this.commitGitee(changes, message, r)
+      if (r === this.repo) this.triggerDeploy()
+    } finally {
+      this.busy.set(false)
+    }
+  }
+
+  private async commitGitHub(
+    changes: FileChange[],
+    message: string,
+    r: RepoInfo,
+  ) {
+    const base = `/repos/${r.owner}/${r.repo}`
+    const ref = await this.request(
+      'GET',
+      `${base}/git/ref/heads/${encodeURIComponent(r.branch)}`,
+      undefined,
+      r,
+    )
+    const headSha = ref.object.sha
+    const head = await this.request(
+      'GET',
+      `${base}/git/commits/${headSha}`,
+      undefined,
+      r,
+    )
+    const readRef = { ...r, branch: headSha }
+    for (const c of changes) {
+      if (c.expectedSha !== undefined || c.expectedContent !== undefined)
+        this.assertVersion(c, await this.getFile(c.path, readRef))
+    }
+    const tree: any[] = []
+    for (const c of changes) {
+      if (c.content === null) {
+        tree.push({ path: c.path, mode: '100644', type: 'blob', sha: null })
+      } else if (c.base64) {
+        const blob = await this.request(
+          'POST',
+          `${base}/git/blobs`,
+          { content: c.content, encoding: 'base64' },
+          r,
+        )
+        tree.push({ path: c.path, mode: '100644', type: 'blob', sha: blob.sha })
+      } else {
+        tree.push({
+          path: c.path,
+          mode: '100644',
+          type: 'blob',
+          content: c.content,
+        })
+      }
+    }
+    const newTree = await this.request(
+      'POST',
+      `${base}/git/trees`,
+      { base_tree: head.tree.sha, tree },
+      r,
+    )
+    const commit = await this.request(
+      'POST',
+      `${base}/git/commits`,
+      { message, tree: newTree.sha, parents: [headSha] },
+      r,
+    )
+    await this.request(
+      'PATCH',
+      `${base}/git/refs/heads/${encodeURIComponent(r.branch)}`,
+      { sha: commit.sha, force: false },
+      r,
+    )
+  }
+
+  private async commitGitLab(
+    changes: FileChange[],
+    message: string,
+    r: RepoInfo,
+  ) {
+    const actions = []
+    for (const c of changes) {
+      const old = await this.getFile(c.path, r)
+      const exists = !!old
+      this.assertVersion(c, old)
+      if (c.expectedSha && !c.expectedLastCommit)
+        throw new Error('无法取得文件版本，请刷新后重试')
+      if (c.content === null) {
+        if (exists)
+          actions.push({
+            action: 'delete',
+            file_path: c.path,
+            ...(c.expectedLastCommit
+              ? { last_commit_id: c.expectedLastCommit }
+              : {}),
+          })
+        continue
+      }
+      actions.push({
+        action: exists ? 'update' : 'create',
+        file_path: c.path,
+        content: c.base64 ? c.content : Base64.encode(c.content),
+        encoding: 'base64',
+        ...(c.expectedSha && c.expectedLastCommit
+          ? { last_commit_id: c.expectedLastCommit }
+          : {}),
+      })
+    }
+    if (!actions.length) return
+    await this.request(
+      'POST',
+      `/projects/${this.projectPath(r)}/repository/commits`,
+      { branch: r.branch, commit_message: message, actions },
+      r,
+    )
+  }
+
+  private async commitGitee(
+    changes: FileChange[],
+    message: string,
+    r: RepoInfo,
+  ) {
+    // shortcut: Gitee 逐文件写入可能部分提交，获得可用的多文件原子 API 后改为一次提交。
+    const originals = await Promise.all(
+      changes.map((c) => this.getFile(c.path, r)),
+    )
+    changes.forEach((c, i) => this.assertVersion(c, originals[i]))
+    for (const [i, c] of changes.entries()) {
+      const path = `/repos/${r.owner}/${r.repo}/contents/${c.path.split('/').map(encodeURIComponent).join('/')}`
+      const old = originals[i]
+      if (c.content === null) {
+        if (old) {
+          const q = new URLSearchParams({
+            sha: old.sha,
+            message,
+            branch: r.branch,
+          })
+          await this.request('DELETE', `${path}?${q}`, undefined, r)
+        }
+        continue
+      }
+      const body: any = {
+        access_token: this.token(),
+        message,
+        branch: r.branch,
+        content: c.base64 ? c.content : Base64.encode(c.content),
+      }
+      if (old) body.sha = old.sha
+      await this.request(old ? 'PUT' : 'POST', path, body, r)
+    }
+  }
+
+  private assertVersion(
+    change: FileChange,
+    old: { content: string; sha: string } | null,
+  ) {
+    if (
+      (change.expectedSha !== undefined &&
+        (old?.sha ?? null) !== change.expectedSha) ||
+      (change.expectedContent !== undefined &&
+        (old?.content ?? null) !== change.expectedContent)
+    )
+      throw new Error('文件已被修改，请重新读取后重试；当前输入已保留')
+  }
+
+  /** GitHub：图片分支不存在时创建空分支 */
+  private async ensureBranch(r: RepoInfo) {
+    if (r.provider !== 'github') return
+    const base = `/repos/${r.owner}/${r.repo}`
+    try {
+      await this.request(
+        'GET',
+        `${base}/git/ref/heads/${encodeURIComponent(r.branch)}`,
+        undefined,
+        r,
+      )
+    } catch (e: any) {
+      if (e.status !== 404) throw e
+      const commit = await this.request(
+        'POST',
+        `${base}/git/commits`,
+        {
+          message: 'rebot(CI): create image branch',
+          tree: EMPTY_TREE,
+          parents: [],
+        },
+        r,
+      )
+      await this.request(
+        'POST',
+        `${base}/git/refs`,
+        { ref: `refs/heads/${r.branch}`, sha: commit.sha },
+        r,
+      )
+    }
+  }
+
+  /** 上传图片到图片仓库，返回 CDN 地址 */
+  async uploadImage(file: File): Promise<string> {
+    const r = this.imageRepo
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const fr = new FileReader()
+      fr.onload = () => resolve(String(fr.result))
+      fr.onerror = reject
+      fr.readAsDataURL(file)
+    })
+    if (this.demo.active()) return dataUrl
+    const content = dataUrl.split(',')[1]
+    const ext = (
+      file.name.split('.').pop() ||
+      file.type.split('/')[1] ||
+      'png'
+    ).toLowerCase()
+    const path = `${Date.now()}.${ext}`
+    this.busy.set(true)
+    try {
+      await this.ensureBranch(r)
+      const msg = `rebot(CI): upload image ${path}`
+      if (r.provider === 'gitlab') {
+        await this.commitGitLab([{ path, content, base64: true }], msg, r)
+      } else {
+        const body: any = { message: msg, branch: r.branch, content }
+        if (r.provider === 'gitee') body.access_token = this.token()
+        await this.request(
+          r.provider === 'github' ? 'PUT' : 'POST',
+          `/repos/${r.owner}/${r.repo}/contents/${path}`,
+          body,
+          r,
+        )
+      }
+    } finally {
+      this.busy.set(false)
+    }
+    return this.cdnUrl(path, r)
+  }
+
+  cdnUrl(path: string, r: RepoInfo = this.imageRepo) {
+    if (r.provider === 'gitee')
+      return `https://gitee.com/${r.owner}/${r.repo}/raw/${r.branch}/${path}`
+    if (r.provider === 'gitlab')
+      return `https://${r.host}/${r.owner}/${r.repo}/-/raw/${r.branch}/${path}?ref_type=heads`
+    const cdn = this.blog.settings().gitHubCDN || 'cdn.jsdelivr.net'
+    return `https://${cdn}/gh/${r.owner}/${r.repo}@${r.branch}/${path}`
+  }
+
+  /** 请求部署钩子（Vercel / Netlify / Cloudflare Deploy Hook） */
+  triggerDeploy() {
+    if (this.demo.active()) return
+    const url = this.blog.settings().actionUrl
+    if (!url) return
+    fetch(url, { method: 'POST', mode: 'no-cors' }).catch(() => {
+      new Image().src = url
+    })
+  }
+}

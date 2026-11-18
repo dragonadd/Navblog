@@ -1,0 +1,43 @@
+<!doctype html>
+<!--
+  Blog based on https://github.com/xjh22222228/nav (GPL-3.0)
+  Theme style inspired by Fuwari.
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <!-- blog:base -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="renderer" content="webkit" />
+    <!-- blog:title -->
+    <!-- blog:meta -->
+    <!-- blog:pwa -->
+    <!-- blog:theme -->
+    <script>
+      ;(function () {
+        var d = null,
+          storedHue = ''
+        try {
+          d = localStorage.getItem('blog-dark')
+          storedHue = localStorage.getItem('fuwari-theme-hue') || ''
+        } catch (e) {}
+        var dark = window.__BLOG_RESOLVE_DARK__(
+          window.__BLOG_APPEARANCE__,
+          d,
+          window.matchMedia('(prefers-color-scheme: dark)').matches,
+        )
+        document.documentElement.classList.toggle('dark', dark)
+        var hue = parseInt(storedHue, 10)
+        if (!Number.isFinite(hue) || window.__BLOG_THEME_FIXED__)
+          hue = window.__BLOG_HUE__ ?? 52
+        hue = Math.min(360, Math.max(0, hue))
+        window.__BLOG_CURRENT_HUE__ = hue
+        document.documentElement.style.setProperty('--hue', String(hue))
+      })()
+    </script>
+    <!-- blog:head -->
+  </head>
+  <body>
+    <app-root></app-root>
+  </body>
+</html>

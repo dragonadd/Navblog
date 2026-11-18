@@ -1,0 +1,443 @@
+// 构建后处理：为每篇文章及列表页生成静态 HTML（SEO），并生成 sitemap / RSS / 404 等
+import fs from 'node:fs'
+import path from 'node:path'
+import {
+  PATHS,
+  readConfig,
+  readSettings,
+  readPostFiles,
+  escapeHtml,
+  ensureDir,
+  createManifest,
+  rssContent,
+  readMoments,
+  momentsHtml,
+  readAuth,
+} from './lib'
+import { renderMarkdown } from '../src/shared/markdown'
+import { parseFrontMatter } from '../src/shared/frontmatter'
+import type { PostMeta } from '../src/shared/types'
+import { renderCustomResources } from '../src/shared/custom-resources'
+
+const config = readConfig()
+const settings = readSettings()
+const all = readPostFiles()
+const moments = readMoments()
+const published = all.filter((p) => !p.meta.draft)
+const posts = published.filter((p) => !p.meta.hidden)
+const dist = PATHS.dist
+const auth = readAuth()
+if (auth) {
+  ensureDir(path.join(dist, 'data'))
+  fs.writeFileSync(path.join(dist, 'data', 'auth.json'), auth)
+} else fs.rmSync(path.join(dist, 'data', 'auth.json'), { force: true })
+// Angular 会在 head 末尾添加主题样式，重新排列专用样式以保持自定义覆盖顺序。
+const template = renderCustomResources(
+  fs.readFileSync(path.join(dist, 'index.html'), 'utf8'),
+  settings,
+  config.baseHref,
+)
+const siteRoot = config.siteUrl ? config.siteUrl + config.baseHref : ''
+
+const abs = (p: string) =>
+  siteRoot
+    ? siteRoot + p.replace(/^\//, '')
+    : config.baseHref + p.replace(/^\//, '')
+const enc = (s: string) => encodeURIComponent(s)
+const fmtDate = (d?: string) => (d || '').slice(0, 10)
+const toDate = (d?: string) => {
+  const t = new Date((d || '').replace(' ', 'T'))
+  return isNaN(t.getTime()) ? new Date() : t
+}
+
+interface PageOptions {
+  route: string // 相对路径，例如 posts/hello/
+  title?: string
+  description?: string
+  image?: string
+  type?: 'website' | 'article'
+  body: string
+  extraHead?: string
+}
+
+function siteTitle(title?: string) {
+  return title
+    ? `${title} - ${settings.title}`
+    : settings.subtitle
+      ? `${settings.title} - ${settings.subtitle}`
+      : settings.title
+}
+
+function renderPage(o: PageOptions): string {
+  const title = siteTitle(o.title)
+  const desc = o.description || settings.description
+  let html = template
+  html = html.replace(
+    /<title>[\s\S]*?<\/title>/,
+    () => `<title>${escapeHtml(title)}</title>`,
+  )
+  html = html.replace(
+    /<meta name="description" content="[^"]*"\s*\/?>/,
+    () => `<meta name="description" content="${escapeHtml(desc)}" />`,
+  )
+  html = html.replace(
+    /<meta property="og:title" content="[^"]*"\s*\/?>/,
+    () => `<meta property="og:title" content="${escapeHtml(title)}" />`,
+  )
+  html = html.replace(
+    /<meta property="og:description" content="[^"]*"\s*\/?>/,
+    () => `<meta property="og:description" content="${escapeHtml(desc)}" />`,
+  )
+  html = html.replace(
+    /<meta property="og:type" content="[^"]*"\s*\/?>/,
+    () => `<meta property="og:type" content="${o.type || 'website'}" />`,
+  )
+  const head = [
+    siteRoot
+      ? `<link rel="canonical" href="${escapeHtml(abs(o.route))}" />`
+      : '',
+    siteRoot
+      ? `<meta property="og:url" content="${escapeHtml(abs(o.route))}" />`
+      : '',
+    o.image
+      ? `<meta property="og:image" content="${escapeHtml(o.image)}" />`
+      : '',
+    `<meta name="twitter:card" content="${o.image ? 'summary_large_image' : 'summary'}" />`,
+    o.extraHead || '',
+  ]
+    .filter(Boolean)
+    .join('\n    ')
+  html = html.replace('</head>', () => `    ${head}\n  </head>`)
+  // 预渲染内容：搜索引擎/禁用 JS 时可见，Angular 启动后移除
+  html = html.replace(
+    /<app-root>\s*<\/app-root>/,
+    () =>
+      `<div id="prerender" class="prerender-shell fuwari-card">${o.body}</div>\n    <app-root></app-root>`,
+  )
+  return html
+}
+
+function write(route: string, html: string) {
+  const dir = path.join(dist, ...route.split('/').filter(Boolean))
+  ensureDir(dir)
+  fs.writeFileSync(path.join(dir, 'index.html'), html)
+}
+
+function link(route: string, text: string) {
+  return `<a href="${escapeHtml(route)}">${escapeHtml(text)}</a>`
+}
+
+function listHtml(list: PostMeta[]) {
+  return (
+    '<ul>' +
+    list
+      .map(
+        (p) =>
+          `<li>${link(`posts/${enc(p.slug)}/`, p.title)} <time datetime="${fmtDate(p.date)}">${fmtDate(p.date)}</time>${
+            settings.showSummary !== false && p.summary
+              ? `<p>${escapeHtml(p.summary)}</p>`
+              : ''
+          }</li>`,
+      )
+      .join('') +
+    '</ul>'
+  )
+}
+
+const nav =
+  '<nav>' +
+  [
+    settings.menuHome !== false ? link('./', '首页') : '',
+    settings.menuArchive !== false ? link('archive/', '归档') : '',
+    settings.menuCategories !== false ? link('categories/', '分类') : '',
+    settings.menuTags !== false ? link('tags/', '标签') : '',
+    settings.menuAbout !== false ? link('about/', '关于') : '',
+    settings.menuMoments !== false ? link('moments/', '碎碎念') : '',
+  ]
+    .filter(Boolean)
+    .join(' · ') +
+  '</nav>'
+
+// ---------- 文章页 ----------
+for (const { meta, body } of published) {
+  const html = meta.encrypted
+    ? `<p class="encrypted-post">${escapeHtml(meta.summary || '')}</p><p>请启用 JavaScript 并输入密码阅读。</p>`
+    : renderMarkdown(body).html
+  const route = `posts/${meta.slug}/`
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: meta.title,
+    datePublished: toDate(meta.date).toISOString(),
+    dateModified: toDate(meta.updated || meta.date).toISOString(),
+    author: { '@type': 'Person', name: settings.author },
+    image: meta.cover || undefined,
+    description: meta.summary,
+    keywords: meta.tags.join(','),
+  }
+  const cover =
+    settings.articleCover !== false && meta.cover
+      ? `<img src="${escapeHtml(meta.cover)}" alt="${escapeHtml(meta.title)}" />`
+      : ''
+  const metadata =
+    settings.articleMeta === false
+      ? ''
+      : '<p><time datetime="' +
+        fmtDate(meta.date) +
+        '">' +
+        fmtDate(meta.date) +
+        '</time>' +
+        (meta.category
+          ? ' · ' +
+            link('categories/' + enc(meta.category) + '/', meta.category)
+          : '') +
+        meta.tags
+          .map((t) => ' · ' + link('tags/' + enc(t) + '/', '#' + t))
+          .join('') +
+        '</p>'
+  const content =
+    nav +
+    '<article>' +
+    (settings.articleCoverTop ? cover : '') +
+    '<h1>' +
+    escapeHtml(meta.title) +
+    '</h1>' +
+    metadata +
+    (settings.articleCoverTop ? '' : cover) +
+    '<div class="prose-blog">' +
+    html +
+    '</div></article>'
+  write(
+    route,
+    renderPage({
+      route,
+      title: meta.title,
+      description: meta.summary,
+      image: meta.cover,
+      type: 'article',
+      body: content,
+      extraHead: [
+        meta.hidden ? '<meta name="robots" content="noindex" />' : '',
+        `<meta property="article:published_time" content="${toDate(meta.date).toISOString()}" />`,
+        ...meta.tags.map(
+          (t) => `<meta property="article:tag" content="${escapeHtml(t)}" />`,
+        ),
+        `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`,
+      ].join('\n    '),
+    }),
+  )
+}
+
+// ---------- 列表页 ----------
+const metas = posts.map((p) => p.meta)
+const size = settings.postsPerPage
+const paginated = settings.listMode !== 'scroll'
+const totalPages = paginated ? Math.max(1, Math.ceil(posts.length / size)) : 1
+const home = renderPage({
+  route: '',
+  body: `<h1>${escapeHtml(settings.title)}</h1><p>${escapeHtml(settings.description)}</p>${nav}${listHtml(paginated ? metas.slice(0, size) : metas)}`,
+})
+fs.writeFileSync(path.join(dist, 'index.html'), home)
+for (let i = 2; i <= totalPages; i++) {
+  write(
+    `page/${i}/`,
+    renderPage({
+      route: `page/${i}/`,
+      title: `第 ${i} 页`,
+      body: `${nav}${listHtml(metas.slice((i - 1) * size, i * size))}`,
+    }),
+  )
+}
+const months = new Map<string, PostMeta[]>()
+for (const meta of [...metas].sort((a, b) => b.date.localeCompare(a.date))) {
+  const month = /^\d{4}-\d{2}/.test(meta.date)
+    ? meta.date.slice(0, 7)
+    : 'unknown'
+  months.set(month, [...(months.get(month) || []), meta])
+}
+write(
+  'archive/',
+  renderPage({
+    route: 'archive/',
+    title: '归档',
+    body:
+      '<h1>归档</h1>' +
+      nav +
+      [...months]
+        .map(
+          ([month, list]) =>
+            '<section id="archive-' +
+            month +
+            '"><h2>' +
+            month +
+            '</h2>' +
+            listHtml(list) +
+            '</section>',
+        )
+        .join(''),
+  }),
+)
+
+const group = (key: (p: PostMeta) => string[]) => {
+  const map = new Map<string, PostMeta[]>()
+  for (const { meta } of posts)
+    for (const k of key(meta)) map.set(k, [...(map.get(k) || []), meta])
+  return map
+}
+for (const [type, label, map] of [
+  ['categories', '分类', group((p) => (p.category ? [p.category] : []))],
+  ['tags', '标签', group((p) => p.tags)],
+] as const) {
+  const items = [...map.entries()]
+  write(
+    `${type}/`,
+    renderPage({
+      route: `${type}/`,
+      title: label,
+      body: `<h1>${label}</h1>${nav}<ul>${items.map(([n, l]) => `<li>${link(`${type}/${enc(n)}/`, n)} (${l.length})</li>`).join('')}</ul>`,
+    }),
+  )
+  for (const [name, list] of items) {
+    write(
+      `${type}/${name}/`,
+      renderPage({
+        route: `${type}/${enc(name)}/`,
+        title: `${label}：${name}`,
+        body: `<h1>${escapeHtml(name)}</h1>${nav}${listHtml(list)}`,
+      }),
+    )
+  }
+}
+
+if (fs.existsSync(PATHS.about)) {
+  const about = renderMarkdown(
+    parseFrontMatter(fs.readFileSync(PATHS.about, 'utf8')).body,
+  ).html
+  write(
+    'about/',
+    renderPage({
+      route: 'about/',
+      title: '关于',
+      body: `${nav}<div class="prose-blog">${about}</div>`,
+    }),
+  )
+}
+write('search/', renderPage({ route: 'search/', title: '搜索', body: nav }))
+write(
+  'moments/',
+  renderPage({
+    route: 'moments/',
+    title: '碎碎念',
+    body: `${nav}<h1>碎碎念</h1>${momentsHtml(JSON.stringify(moments))}`,
+  }),
+)
+
+// 404 / SPA 回退（GitHub Pages 会在找不到页面时返回 404.html，由前端路由接管）
+fs.writeFileSync(path.join(dist, '404.html'), template)
+// 后台页面
+write(
+  'admin/',
+  renderPage({
+    route: 'admin/',
+    title: '管理后台',
+    body: '',
+    extraHead: '<meta name="robots" content="noindex" />',
+  }),
+)
+
+// ---------- sitemap / RSS / robots ----------
+if (siteRoot) {
+  const urls = [
+    { loc: abs(''), lastmod: posts[0]?.meta.date },
+    { loc: abs('archive/') },
+    { loc: abs('categories/') },
+    { loc: abs('tags/') },
+    { loc: abs('about/') },
+    // shortcut: sitemap 日期取最新发布动态，需精准追踪旧动态编辑时改为全部条目的最大更新时间。
+    { loc: abs('moments/'), lastmod: moments[0]?.updated || moments[0]?.date },
+    ...posts.map((p) => ({
+      loc: abs(`posts/${enc(p.meta.slug)}/`),
+      lastmod: p.meta.updated || p.meta.date,
+    })),
+  ]
+  fs.writeFileSync(
+    path.join(dist, 'sitemap.xml'),
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
+      .map(
+        (u) =>
+          `  <url><loc>${escapeHtml(u.loc)}</loc>${u.lastmod ? `<lastmod>${toDate(u.lastmod).toISOString()}</lastmod>` : ''}</url>`,
+      )
+      .join('\n')}\n</urlset>\n`,
+  )
+}
+const rssItems = posts.slice(0, 20).map(({ meta, body }) => {
+  const url = abs(`posts/${enc(meta.slug)}/`)
+  return `    <item>
+      <title>${escapeHtml(meta.title)}</title>
+      <link>${escapeHtml(url)}</link>
+      <guid>${escapeHtml(url)}</guid>
+      <pubDate>${toDate(meta.date).toUTCString()}</pubDate>
+      ${meta.category ? `<category>${escapeHtml(meta.category)}</category>` : ''}
+      <description><![CDATA[${rssContent(meta, body, settings.rssFullContent !== false).replace(/]]>/g, ']]&gt;')}]]></description>
+    </item>`
+})
+if (settings.rssEnable !== false)
+  fs.writeFileSync(
+    path.join(dist, 'rss.xml'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>${escapeHtml(settings.title)}</title>
+    <link>${escapeHtml(abs(''))}</link>
+    <description>${escapeHtml(settings.description)}</description>
+    <language>zh-CN</language>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+${rssItems.join('\n')}
+  </channel>
+</rss>
+`,
+  )
+else fs.rmSync(path.join(dist, 'rss.xml'), { force: true })
+if (settings.pwaEnable)
+  fs.writeFileSync(
+    path.join(dist, 'manifest.webmanifest'),
+    JSON.stringify(createManifest(settings, config.baseHref), null, 2) + '\n',
+  )
+else fs.rmSync(path.join(dist, 'manifest.webmanifest'), { force: true })
+fs.writeFileSync(
+  path.join(dist, 'robots.txt'),
+  `User-agent: *\nAllow: /\nDisallow: ${config.baseHref}admin\n${siteRoot ? `Sitemap: ${abs('sitemap.xml')}\n` : ''}`,
+)
+// GitHub Pages：禁用 Jekyll
+fs.writeFileSync(path.join(dist, '.nojekyll'), '')
+// Cloudflare 规则优先于已有资源，只匹配后台页面，避免把 JS/CSS 改写成 HTML。
+fs.writeFileSync(
+  path.join(dist, '_redirects'),
+  [
+    ...['', '/'].map(
+      (suffix) =>
+        `${config.baseHref}admin${suffix} ${config.baseHref}admin/index.html 200`,
+    ),
+    ...['login', 'new', 'settings', 'about', 'moments'].flatMap((route) =>
+      ['', '/'].map(
+        (suffix) =>
+          `${config.baseHref}admin/${route}${suffix} ${config.baseHref}admin/index.html 200`,
+      ),
+    ),
+    `${config.baseHref}admin/edit/* ${config.baseHref}admin/index.html 200`,
+  ].join('\n') + '\n',
+)
+fs.writeFileSync(
+  path.join(dist, '_headers'),
+  [
+    `${config.baseHref}\n  Cache-Control: no-cache`,
+    `${config.baseHref}index.html\n  Cache-Control: no-cache`,
+    `${config.baseHref}admin\n  Cache-Control: no-cache`,
+    `${config.baseHref}admin/*\n  Cache-Control: no-cache`,
+    `${config.baseHref}data/auth.json\n  Cache-Control: no-store, max-age=0`,
+  ].join('\n\n') + '\n',
+)
+
+console.log(
+  `[postbuild] 已生成 ${published.length} 篇文章静态页、${paginated ? `${totalPages} 个分页` : '自动加载（无分页）'}；RSS=${settings.rssEnable !== false}，PWA=${!!settings.pwaEnable}`,
+)
